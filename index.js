@@ -70,25 +70,25 @@ async function processWebhook(body) {
 
   let userMessage;
 
+  let imageId;
   if (message.type === "text") {
     userMessage = message.text?.body?.trim();
-  } else {
+} else if (message.type === "image") {
+    imageId = message.image?.id;
+    userMessage = message.image?.caption?.trim() || "Tolong analisa foto ini.";
+} else {
     await sendWhatsAppMessage(
-      phoneNumberId,
-      senderNumber,
-      "Maaf, saat ini saya baru dapat membaca pesan teks. Silakan kirim pertanyaan dalam bentuk tulisan."
+        phoneNumberId,
+        senderNumber,
+        "Maaf, saat ini saya baru dapat menerima pesan teks dan foto."
     );
     return;
-  }
-
-  if (!userMessage) {
-    return;
-  }
+}
 
   console.log(`Pesan dari ${senderNumber}: ${userMessage}`);
 
   try {
-    const aiReply = await askOpenAI(userMessage, senderNumber);
+    const aiReply = await askOpenAI(userMessage, senderNumber, imageId);
 
     await sendWhatsAppMessage(
       phoneNumberId,
@@ -108,14 +108,47 @@ async function processWebhook(body) {
       senderNumber,
       "Maaf, sistem sedang mengalami gangguan. Silakan coba kirim pesan kembali beberapa saat lagi."
     );
-  }
+   async function getWhatsAppImage(imageId) {
+    if (!imageId) return null;
+
+    // Ambil URL media dari WhatsApp
+    const mediaInfo = await axios.get(
+        `https://graph.facebook.com/${GRAPH_API_VERSION}/${imageId}`,
+        {
+            headers: {
+                Authorization: `Bearer ${WHATSAPP_TOKEN}`
+            }
+        }
+    );
+
+    const mediaUrl = mediaInfo.data.url;
+
+    // Download file gambar
+    const imageResponse = await axios.get(mediaUrl, {
+        headers: {
+            Authorization: `Bearer ${WHATSAPP_TOKEN}`
+        },
+        responseType: "arraybuffer"
+    });
+
+    const mimeType =
+        imageResponse.headers["content-type"] || "image/jpeg";
+
+    const base64Image =
+        Buffer.from(imageResponse.data).toString("base64");
+
+    return `data:${mimeType};base64,${base64Image}`;
 }
 
-async function askOpenAI(userMessage, senderNumber) {
+    async function askOpenAI(userMessage, senderNumber, imageId) {
   if (!OPENAI_API_KEY) {
     throw new Error("OPENAI_API_KEY belum tersedia di Railway");
   }
 
+      const imageData = imageId
+    ? await getWhatsAppImage(imageId)
+    : null;
+      
   const history = conversationMemory.get(senderNumber) || [];
 
   const conversationText = [
@@ -165,7 +198,23 @@ Tugas Anda:
 10. Jawaban WhatsApp harus ringkas dan mudah dipahami.
 
 Saat pelanggan baru menyapa, balas dengan ramah dan tanyakan kebutuhannya terkait genset, panel listrik, ATS-AMF, instalasi, atau perawatan.`, 
-      input: conversationText,
+      input: imageData
+    ? [
+        {
+            role: "user",
+            content: [
+                {
+                    type: "input_text",
+                    text: conversationText
+                },
+                {
+                    type: "input_image",
+                    image_url: imageData
+                }
+            ]
+        }
+    ]
+    : conversationText,
       max_output_tokens: 500
     },
     {
