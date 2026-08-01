@@ -11541,7 +11541,7 @@ CM. NEW CASE STATE EXAMPLE
 function createNewCaseState(customerId) {
     return {
         customerId,
-        caseId: `${customerId}-${Date.now()}`,
+        caseId: caseId: customerId + "-" + Date.now(),
         knownEvidence: {},
         answeredTargets: new Set(),
         askedTargets: new Set(),
