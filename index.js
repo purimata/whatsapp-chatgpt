@@ -119,7 +119,7 @@ async function askOpenAI(userMessage) {
     {
       model: "gpt-4.1-mini",
       instructions:
-        "Anda adalah asisten WhatsApp resmi Purimata.
+        `Anda adalah asisten WhatsApp resmi Purimata.
 
 Purimata melayani:
 - Penjualan, instalasi, perawatan, dan perbaikan genset.
