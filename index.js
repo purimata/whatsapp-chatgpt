@@ -12,6 +12,8 @@ const GRAPH_API_VERSION = "v26.0";
 // Mencegah satu pesan diproses dua kali
 const processedMessages = new Set();
 
+// Memory percakapan setiap nomor WhatsApp
+const conversationMemory = new Map();
 app.get("/", (req, res) => {
   res.status(200).send("WhatsApp ChatGPT Bot is Running!");
 });
@@ -86,7 +88,7 @@ async function processWebhook(body) {
   console.log(`Pesan dari ${senderNumber}: ${userMessage}`);
 
   try {
-    const aiReply = await askOpenAI(userMessage);
+    const aiReply = await askOpenAI(userMessage, senderNumber);
 
     await sendWhatsAppMessage(
       phoneNumberId,
@@ -109,11 +111,18 @@ async function processWebhook(body) {
   }
 }
 
-async function askOpenAI(userMessage) {
+async function askOpenAI(userMessage, senderNumber) {
   if (!OPENAI_API_KEY) {
     throw new Error("OPENAI_API_KEY belum tersedia di Railway");
   }
 
+  const history = conversationMemory.get(senderNumber) || [];
+
+  const conversationText = [
+  ...history,
+  `Pelanggan: ${userMessage}`
+].join("\n");
+  
   const response = await axios.post(
     "https://api.openai.com/v1/responses",
     {
@@ -156,7 +165,7 @@ Tugas Anda:
 10. Jawaban WhatsApp harus ringkas dan mudah dipahami.
 
 Saat pelanggan baru menyapa, balas dengan ramah dan tanyakan kebutuhannya terkait genset, panel listrik, ATS-AMF, instalasi, atau perawatan.`, 
-      input: userMessage,
+      input: conversationText,
       max_output_tokens: 500
     },
     {
@@ -179,6 +188,14 @@ Saat pelanggan baru menyapa, balas dengan ramah dan tanyakan kebutuhannya terkai
     throw new Error("OpenAI tidak menghasilkan balasan");
   }
 
+  const updatedHistory = [
+  ...history,
+  `Pelanggan: ${userMessage}`,
+  `Purimata: ${reply}`
+].slice(-12);
+
+  conversationMemory.set(senderNumber, updatedHistory);
+  
   // Batas aman panjang pesan WhatsApp
   return reply.slice(0, 4000);
 }
