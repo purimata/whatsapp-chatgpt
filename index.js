@@ -32,6 +32,7 @@ app.get("/webhook", (req, res) => {
 
 // Menerima pesan WhatsApp
 app.post("/webhook", (req, res) => {
+  console.log("Webhook POST diterima:", JSON.stringify(req.body));
   // Meta harus segera menerima status 200
   res.sendStatus(200);
 
