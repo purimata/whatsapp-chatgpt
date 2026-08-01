@@ -116,7 +116,7 @@ async function askOpenAI(userMessage) {
   const response = await axios.post(
     "https://api.openai.com/v1/responses",
     {
-      model: "gpt-5.6-luna",
+      model: "gpt-4.1-mini",
       instructions:
         "Anda adalah asisten WhatsApp Business Purimata. Jawab menggunakan bahasa Indonesia yang ramah, jelas, sopan, dan ringkas. Bantu pelanggan mengenai genset, panel listrik, ATS-AMF, instalasi, perawatan, dan pertanyaan umum. Jika informasi belum cukup, ajukan satu pertanyaan klarifikasi. Jangan mengarang harga, stok, alamat, atau kebijakan perusahaan.",
       input: userMessage,
