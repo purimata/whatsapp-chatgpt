@@ -108,6 +108,8 @@ async function processWebhook(body) {
       senderNumber,
       "Maaf, sistem sedang mengalami gangguan. Silakan coba kirim pesan kembali beberapa saat lagi."
     );
+      }
+}
    async function getWhatsAppImage(imageId) {
     if (!imageId) return null;
 
