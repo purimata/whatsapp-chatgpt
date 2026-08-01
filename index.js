@@ -155,7 +155,7 @@ Tugas Anda:
 9. Arahkan pelanggan kepada admin apabila membutuhkan survei, penawaran resmi, jadwal teknisi, atau konfirmasi harga.
 10. Jawaban WhatsApp harus ringkas dan mudah dipahami.
 
-Saat pelanggan baru menyapa, balas dengan ramah dan tanyakan kebutuhannya terkait genset, panel listrik, ATS-AMF, instalasi, atau perawatan. ",
+Saat pelanggan baru menyapa, balas dengan ramah dan tanyakan kebutuhannya terkait genset, panel listrik, ATS-AMF, instalasi, atau perawatan.`, 
       input: userMessage,
       max_output_tokens: 500
     },
