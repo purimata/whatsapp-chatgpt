@@ -241,6 +241,21 @@ function createDiagnosticCase(senderNumber) {
 
     diagnosticStage: "INITIAL",
 
+    evidencePipeline: {
+  stage: "NONE",
+  requestedTypes: [],
+  receivedTypes: [],
+  attempts: 0,
+  summary: null
+},
+
+handoff: {
+  required: false,
+  reason: null,
+  caseSummary: null,
+  technicianRecommendation: null
+},
+    
     createdAt: Date.now(),
     updatedAt: Date.now()
   };
@@ -289,6 +304,81 @@ function applyCurrentAnswerToEvidence(
 
   diagnosticCase.currentQuestionTarget = null;
 }
+
+function shouldEscalateToEvidence(diagnosticCase) {
+  if (!diagnosticCase) return false;
+
+  const totalAsked =
+    diagnosticCase.askedQuestionTargets?.length || 0;
+
+  const unknownCount = Object.keys(
+    diagnosticCase.evidenceState?.unknown || {}
+  ).length;
+
+  const noRemainingTargets =
+    selectNextDiagnosticTarget(diagnosticCase) === null;
+
+  const tooManyUnknown =
+    unknownCount >= 6;
+
+  const tooManyQuestions =
+    totalAsked >= 10;
+
+  return (
+    noRemainingTargets ||
+    tooManyUnknown ||
+    tooManyQuestions
+  );
+}
+
+function requestObjectiveEvidence(diagnosticCase) {
+  if (!diagnosticCase) {
+    return null;
+  }
+
+  if (!diagnosticCase.evidencePipeline) {
+    diagnosticCase.evidencePipeline = {
+      stage: "NONE",
+      requestedTypes: [],
+      receivedTypes: [],
+      attempts: 0,
+      summary: null
+    };
+  }
+
+  const pipeline = diagnosticCase.evidencePipeline;
+
+  // Jangan meminta bukti yang sama berulang kali.
+  if (pipeline.stage !== "NONE") {
+    return null;
+  }
+
+  const requestedTypes = [
+    "controllerDisplay",
+    "engineFuelArea",
+    "nameplateData"
+  ];
+
+  pipeline.stage = "REQUESTED";
+  pipeline.requestedTypes = requestedTypes;
+  pipeline.attempts += 1;
+
+  diagnosticCase.diagnosticStage = "OBJECTIVE_EVIDENCE";
+  diagnosticCase.currentQuestionTarget = null;
+  diagnosticCase.updatedAt = Date.now();
+
+  return [
+    "Informasi yang tersedia belum cukup untuk menentukan penyebab secara aman.",
+    "",
+    "Mohon kirim bukti berikut:",
+    "1. Foto display controller setelah genset mati.",
+    "2. Foto area mesin, filter, selang, dan jalur bahan bakar.",
+    "3. Foto nameplate genset atau mesin yang tulisannya terlihat jelas.",
+    "",
+    "Ambil foto dari jarak aman. Jangan membuka pelindung, menyentuh kabel, atau bagian yang sedang bertegangan."
+  ].join("\n");
+}
+
 app.get("/", (req, res) => {
   res.status(200).send("WhatsApp ChatGPT Bot is Running!");
 });
@@ -13805,6 +13895,14 @@ if (questionTarget === null || !reply) {
   } else {
     questionTarget = null;
 
+    if (shouldEscalateToEvidence(diagnosticCase)) {
+    const evidenceRequest =
+      requestObjectiveEvidence(diagnosticCase);
+
+    reply =
+      evidenceRequest ||
+      "Bukti objektif sudah pernah diminta. Silakan kirim foto controller, area mesin dan jalur bahan bakar, serta nameplate genset.";
+  } else {
     reply =
       "Bukti yang sudah Anda berikan telah saya catat. Data saat ini belum cukup untuk menentukan penyebab secara pasti.";
   }
