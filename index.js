@@ -13753,32 +13753,41 @@ if (retryDiagnosticOutput) {
   questionTarget = retryDiagnosticOutput.questionTarget ?? null;
 }
     
-    if (
-  questionTarget !== null &&
-  !isValidDiagnosticTarget(questionTarget)
-) {
-  questionTarget = null;
-
-  reply =
-    "Bukti yang sudah Anda berikan telah saya catat. Saya tidak akan melanjutkan dengan pertanyaan diagnostik yang tidak valid.";
-}
-
+    // Validate hasil corrective retry.
+// Jika target invalid, sudah closed, atau reply kosong,
+// jangan berhenti dengan pesan generik.
+// Backend wajib memilih target diagnostik berikutnya.
 if (
-  questionTarget &&
-  diagnosticCase.closedTargets.includes(questionTarget)
+  questionTarget !== null &&
+  (
+    !isValidDiagnosticTarget(questionTarget) ||
+    diagnosticCase.closedTargets.includes(questionTarget)
+  )
 ) {
   questionTarget = null;
-
-  reply =
-    "Bukti yang sudah Anda berikan telah saya catat dan tidak akan saya tanyakan kembali. Untuk saat ini saya tidak akan mengulang pertanyaan diagnostik yang sama.";
 }
 
-if (!reply) {
-  questionTarget = null;
+if (questionTarget === null || !reply) {
+  const fallbackTarget =
+    selectNextDiagnosticTarget(diagnosticCase);
 
-  reply =
-    "Bukti yang sudah Anda berikan telah saya catat. Untuk saat ini saya tidak akan mengulang pertanyaan diagnostik yang sama.";
-}
+  const fallbackQuestion =
+    fallbackTarget !== null
+      ? buildFallbackDiagnosticQuestion(fallbackTarget)
+      : null;
+
+  if (
+    fallbackTarget !== null &&
+    fallbackQuestion !== null
+  ) {
+    questionTarget = fallbackTarget;
+    reply = fallbackQuestion;
+  } else {
+    questionTarget = null;
+
+    reply =
+      "Bukti yang sudah Anda berikan telah saya catat. Data saat ini belum cukup untuk menentukan penyebab secara pasti.";
+  }
 }
   
 if (!reply) {
