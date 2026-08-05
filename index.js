@@ -648,6 +648,82 @@ function requestObjectiveEvidence(diagnosticCase) {
   ].join("\n");
 }
 
+// Level 2.5.B.3 - Evidence Unavailable -> Human Handoff
+// Mengunci kasus ke handoff ketika bukti objektif sudah diminta,
+// tetapi pelanggan menyatakan bukti tidak tersedia / tidak dapat diperiksa.
+function handleEvidenceUnavailable(diagnosticCase, userMessage) {
+  if (!diagnosticCase || !userMessage) {
+    return null;
+  }
+
+  const pipelineStage =
+    diagnosticCase.evidencePipeline?.stage ?? "NONE";
+
+  if (
+    diagnosticCase.diagnosticStage !== "OBJECTIVE_EVIDENCE" ||
+    pipelineStage !== "REQUESTED"
+  ) {
+    return null;
+  }
+
+  const normalizedMessage = String(userMessage)
+    .toLowerCase()
+    .replace(/[.,!?;:]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  const unavailablePatterns = [
+    "tidak bisa mengirim",
+    "tidak dapat mengirim",
+    "tidak punya foto",
+    "tidak ada foto",
+    "belum punya foto",
+    "tidak bisa foto",
+    "tidak dapat foto",
+    "tidak bisa diperiksa",
+    "tidak dapat diperiksa",
+    "belum bisa diperiksa",
+    "tidak bisa mengecek",
+    "tidak dapat mengecek",
+    "tidak bisa melihat",
+    "tidak dapat melihat",
+    "berada di lokasi lain",
+    "genset di lokasi lain",
+    "mesin di lokasi lain",
+    "saya tidak di lokasi"
+  ];
+
+  const evidenceUnavailable = unavailablePatterns.some(
+    (pattern) => normalizedMessage.includes(pattern)
+  );
+
+  if (!evidenceUnavailable) {
+    return null;
+  }
+
+  diagnosticCase.evidencePipeline.stage = "UNAVAILABLE";
+  diagnosticCase.diagnosticStage = "HUMAN_HANDOFF";
+  diagnosticCase.currentQuestionTarget = null;
+
+  diagnosticCase.handoff.required = true;
+  diagnosticCase.handoff.reason =
+    "Bukti objektif yang diperlukan tidak tersedia atau tidak dapat diperiksa.";
+
+  diagnosticCase.handoff.caseSummary =
+    "Diagnosis jarak jauh belum dapat dipastikan karena bukti objektif tambahan tidak tersedia.";
+
+  diagnosticCase.handoff.technicianRecommendation =
+    "Kasus perlu dilanjutkan oleh Admin Purimata atau teknisi untuk pemeriksaan lebih lanjut.";
+
+  diagnosticCase.updatedAt = Date.now();
+
+  return [
+    "Bukti yang diperlukan belum dapat diperoleh, sehingga saya tidak akan melanjutkan pertanyaan diagnostik yang sama tanpa dasar yang cukup.",
+    "",
+    "Untuk menghindari diagnosis yang tidak akurat, kasus ini sebaiknya dilanjutkan ke Admin Purimata atau teknisi untuk pemeriksaan lebih lanjut."
+  ].join("\n");
+}
+
 app.get("/", (req, res) => {
   res.status(200).send("WhatsApp ChatGPT Bot is Running!");
 });
@@ -738,6 +814,31 @@ diagnosticCase.updatedAt = Date.now();
   );
 }
 
+  // Level 2.5.B.3 - Evidence Unavailable -> Human Handoff Gate
+if (
+  message.type === "text" &&
+  diagnosticCase.evidencePipeline?.stage === "REQUESTED"
+) {
+  const handoffReply = handleEvidenceUnavailable(
+    diagnosticCase,
+    userMessage
+  );
+
+  if (handoffReply) {
+    await sendWhatsAppMessage(
+      phoneNumberId,
+      senderNumber,
+      handoffReply
+    );
+
+    console.log(
+      `Human handoff required for ${senderNumber}: ${diagnosticCase.handoff.reason}`
+    );
+
+    return;
+  }
+}
+  
   // Level 2.5.B — Pre-Model Escalation Gate.
 // Setelah jawaban terakhir dicatat, backend memeriksa apakah
 // wawancara diagnostik harus dihentikan dan beralih ke bukti objektif.
