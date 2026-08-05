@@ -477,6 +477,19 @@ function applyCurrentAnswerToEvidence(
 ) {
   const target = diagnosticCase?.currentQuestionTarget;
 
+  console.log(
+  "[DIAG][ANSWER-BEFORE]",
+  JSON.stringify({
+    userMessage,
+    currentQuestionTarget: target,
+    closedTargets: diagnosticCase?.closedTargets || [],
+    askedQuestionTargets: diagnosticCase?.askedQuestionTargets || [],
+    askedQuestionTexts: diagnosticCase?.askedQuestionTexts || [],
+    evidenceConfirmed: diagnosticCase?.evidenceState?.confirmed || {},
+    evidenceUnknown: diagnosticCase?.evidenceState?.unknown || {}
+  })
+);
+  
   if (!diagnosticCase || !target) {
     return;
   }
@@ -545,6 +558,19 @@ function applyCurrentAnswerToEvidence(
     );
   }
 
+  console.log(
+  "[DIAG][ANSWER-AFTER]",
+  JSON.stringify({
+    userMessage,
+    processedTarget: target,
+    closedTargets: diagnosticCase?.closedTargets || [],
+    askedQuestionTargets: diagnosticCase?.askedQuestionTargets || [],
+    askedQuestionTexts: diagnosticCase?.askedQuestionTexts || [],
+    evidenceConfirmed: diagnosticCase?.evidenceState?.confirmed || {},
+    evidenceUnknown: diagnosticCase?.evidenceState?.unknown || {}
+  })
+);
+  
   diagnosticCase.currentQuestionTarget = null;
 }
 
