@@ -14250,11 +14250,116 @@ if (!reply) {
   throw new Error("OpenAI tidak menghasilkan balasan");
 }
 
-  if (questionTarget) {
-  diagnosticCase.currentQuestionTarget = questionTarget;
+  // Level 2.5.B.3 — Semantic Duplicate Enforcement.
+// Periksa pertanyaan terakhir sebelum disimpan dan dikirim ke pelanggan.
+if (questionTarget) {
+  const questionMatches =
+    String(reply || "").match(/[^.!?\n]*\?/g);
 
-  if (!diagnosticCase.askedQuestionTargets.includes(questionTarget)) {
-    diagnosticCase.askedQuestionTargets.push(questionTarget);
+  const candidateQuestion =
+    (
+      questionMatches?.at(-1) ||
+      reply ||
+      ""
+    ).trim();
+
+  const isDuplicate =
+    isSemanticDuplicateDiagnosticQuestion(
+      diagnosticCase,
+      candidateQuestion,
+      questionTarget
+    );
+
+  if (isDuplicate) {
+    // Target yang menghasilkan pertanyaan berulang ditutup
+    // agar tidak langsung dipilih kembali oleh fallback.
+    if (
+      !diagnosticCase.closedTargets.includes(
+        questionTarget
+      )
+    ) {
+      diagnosticCase.closedTargets.push(
+        questionTarget
+      );
+    }
+
+    questionTarget = null;
+
+    // Coba satu target backend yang benar-benar baru.
+    const replacementTarget =
+      selectNextDiagnosticTarget(diagnosticCase);
+
+    const replacementQuestion =
+      replacementTarget !== null
+        ? buildFallbackDiagnosticQuestion(
+            replacementTarget
+          )
+        : null;
+
+    const replacementIsDuplicate =
+      replacementTarget !== null &&
+      replacementQuestion !== null
+        ? isSemanticDuplicateDiagnosticQuestion(
+            diagnosticCase,
+            replacementQuestion,
+            replacementTarget
+          )
+        : true;
+
+    if (
+      replacementTarget !== null &&
+      replacementQuestion !== null &&
+      !replacementIsDuplicate
+    ) {
+      questionTarget = replacementTarget;
+      reply = replacementQuestion;
+    } else {
+      questionTarget = null;
+
+      const evidenceRequest =
+        shouldEscalateToEvidence(diagnosticCase)
+          ? requestObjectiveEvidence(diagnosticCase)
+          : null;
+
+      reply =
+        evidenceRequest ||
+        "Bukti yang sudah Anda berikan telah saya catat. Data teks saat ini belum cukup untuk menentukan penyebab secara pasti.";
+    }
+  }
+}
+
+if (questionTarget) {
+  diagnosticCase.currentQuestionTarget =
+    questionTarget;
+
+  if (
+    !diagnosticCase.askedQuestionTargets.includes(
+      questionTarget
+    )
+  ) {
+    diagnosticCase.askedQuestionTargets.push(
+      questionTarget
+    );
+  }
+
+  const storedQuestionMatches =
+    String(reply || "").match(/[^.!?\n]*\?/g);
+
+  const storedQuestion =
+    (
+      storedQuestionMatches?.at(-1) ||
+      reply ||
+      ""
+    ).trim();
+
+  if (storedQuestion) {
+    diagnosticCase.askedQuestionTexts.push(
+      storedQuestion
+    );
+
+    // Batasi panjang memori sementara.
+    diagnosticCase.askedQuestionTexts =
+      diagnosticCase.askedQuestionTexts.slice(-30);
   }
 } else {
   diagnosticCase.currentQuestionTarget = null;
