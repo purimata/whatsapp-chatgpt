@@ -135,6 +135,24 @@ function buildFallbackDiagnosticQuestion(target) {
   return questions[target] || null;
 }
 
+// Target diagnostik yang secara semantik saling menutup.
+// Jika satu target sudah dijawab dengan evidence yang cukup,
+// sibling yang ekuivalen tidak boleh ditanyakan kembali.
+const DIAGNOSTIC_SEMANTIC_SIBLINGS = Object.freeze({
+  shutdownCondition: ["engineSpeed"],
+  engineSpeed: ["shutdownCondition"]
+});
+
+function closeSemanticSiblingTargets(diagnosticCase, target) {
+  const siblings = DIAGNOSTIC_SEMANTIC_SIBLINGS[target] || [];
+
+  for (const sibling of siblings) {
+    if (!diagnosticCase.closedTargets.includes(sibling)) {
+      diagnosticCase.closedTargets.push(sibling);
+    }
+  }
+}
+
 const DIAGNOSTIC_OUTPUT_SCHEMA = {
   type: "object",
   properties: {
@@ -243,6 +261,8 @@ delete diagnosticCase.evidenceState.hypotheses[target];
     diagnosticCase.closedTargets.push(target);
   }
 
+  closeSemanticSiblingTargets(diagnosticCase, target);
+  
   diagnosticCase.updatedAt = Date.now();
 }
 function applyCurrentAnswerToEvidence(
