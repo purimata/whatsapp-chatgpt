@@ -814,6 +814,20 @@ diagnosticCase.updatedAt = Date.now();
   );
 }
 
+  console.log(
+  "[DIAG][PRE-HANDOFF-GATE]",
+  JSON.stringify({
+    userMessage,
+    messageType: message.type,
+    diagnosticStage: diagnosticCase?.diagnosticStage,
+    evidencePipelineStage: diagnosticCase?.evidencePipeline?.stage,
+    evidenceAttempts: diagnosticCase?.evidencePipeline?.attempts,
+    requestedTypes: diagnosticCase?.evidencePipeline?.requestedTypes,
+    handoffRequired: diagnosticCase?.handoff?.required,
+    currentQuestionTarget: diagnosticCase?.currentQuestionTarget
+  })
+);
+  
   // Level 2.5.B.3 - Evidence Unavailable -> Human Handoff Gate
 if (
   message.type === "text" &&
