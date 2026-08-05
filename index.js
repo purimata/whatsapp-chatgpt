@@ -18,6 +18,104 @@ const conversationMemory = new Map();
 // State diagnostik terstruktur untuk setiap nomor WhatsApp
 const diagnosticCases = new Map();
 
+const DIAGNOSTIC_TARGETS = Object.freeze([
+  "alarmFault",
+  "controllerDisplay",
+  "startCondition",
+  "shutdownCondition",
+  "batteryVoltage",
+  "engineCranking",
+  "fuelCondition",
+  "oilPressure",
+  "coolantTemperature",
+  "engineSpeed",
+  "generatorVoltage",
+  "generatorFrequency",
+  "mainsVoltage",
+  "atsCondition",
+  "breakerCondition",
+  "emergencyStop",
+  "wiringCondition",
+  "visualEvidence",
+  "nameplateData"
+]);
+
+const DIAGNOSTIC_TARGET_SET = new Set(DIAGNOSTIC_TARGETS);
+
+function isValidDiagnosticTarget(target) {
+  return (
+    typeof target === "string" &&
+    DIAGNOSTIC_TARGET_SET.has(target)
+  );
+}
+
+const DIAGNOSTIC_OUTPUT_SCHEMA = {
+  type: "object",
+  properties: {
+    reply: {
+      type: "string"
+    },
+    questionTarget: {
+  anyOf: [
+    {
+      type: "string",
+      enum: DIAGNOSTIC_TARGETS
+    },
+    {
+      type: "null"
+    }
+  ]
+}
+  },
+  required: [
+    "reply",
+    "questionTarget"
+  ],
+  additionalProperties: false
+};
+
+async function requestCorrectiveDiagnosticRetry(
+  requestBody,
+  closedTargets
+) {
+  const correctiveInstruction = `
+CORRECTIVE RETRY:
+Respons sebelumnya memilih questionTarget yang sudah ditutup.
+
+Target yang SUDAH CLOSED dan DILARANG dipilih kembali:
+${JSON.stringify(closedTargets)}
+
+Pilih hanya SATU questionTarget lain yang:
+- belum terdapat dalam closedTargets;
+- benar-benar diperlukan berdasarkan CASE_STATE;
+- memberikan information gain tertinggi;
+- tidak mengulang evidence yang sudah diketahui.
+
+Jika tidak ada pertanyaan diagnostik baru yang valid, gunakan questionTarget = null.
+
+Jangan mengulang pertanyaan sebelumnya.
+`;
+
+  const retryBody = {
+    ...requestBody,
+    instructions: `${requestBody.instructions}
+
+${correctiveInstruction}`
+  };
+
+  return axios.post(
+    "https://api.openai.com/v1/responses",
+    retryBody,
+    {
+      headers: {
+        Authorization: `Bearer ${OPENAI_API_KEY}`,
+        "Content-Type": "application/json"
+      },
+      timeout: 60000
+    }
+  );
+}
+
 function createDiagnosticCase(senderNumber) {
   return {
     senderNumber,
@@ -36,6 +134,43 @@ function createDiagnosticCase(senderNumber) {
     createdAt: Date.now(),
     updatedAt: Date.now()
   };
+}
+function lockEvidence(diagnosticCase, target, value) {
+  if (!target || value === undefined || value === null) {
+    return;
+  }
+
+  diagnosticCase.knownEvidence[target] = value;
+
+  if (!diagnosticCase.closedTargets.includes(target)) {
+    diagnosticCase.closedTargets.push(target);
+  }
+
+  diagnosticCase.updatedAt = Date.now();
+}
+function applyCurrentAnswerToEvidence(
+  diagnosticCase,
+  userMessage
+) {
+  const target = diagnosticCase.currentQuestionTarget;
+
+  if (!target) {
+    return;
+  }
+
+  const value = userMessage?.trim();
+
+  if (!value) {
+    return;
+  }
+
+  lockEvidence(
+    diagnosticCase,
+    target,
+    value
+  );
+
+  diagnosticCase.currentQuestionTarget = null;
 }
 app.get("/", (req, res) => {
   res.status(200).send("WhatsApp ChatGPT Bot is Running!");
@@ -117,6 +252,16 @@ diagnosticCase.updatedAt = Date.now();
     return;
 }
 
+  if (
+  message.type === "text" &&
+  diagnosticCase.currentQuestionTarget
+) {
+  applyCurrentAnswerToEvidence(
+    diagnosticCase,
+    userMessage
+  );
+}
+  
   console.log(`Pesan dari ${senderNumber}: ${userMessage}`);
 
   try {
@@ -220,6 +365,16 @@ ${caseStateText}`;
     "https://api.openai.com/v1/responses",
     {
       model: "gpt-4.1-mini",
+
+      text: {
+  format: {
+    type: "json_schema",
+    name: "diagnostic_output",
+    strict: true,
+    schema: DIAGNOSTIC_OUTPUT_SCHEMA
+  }
+},
+      
       instructions:
         `Anda adalah asisten WhatsApp resmi Purimata.
 Peran utama Anda adalah sebagai asisten teknisi genset dan panel listrik yang membantu analisis teknis berdasarkan teks, foto, nameplate, controller, wiring, terminal, panel ATS-AMF, alarm, dan kondisi instalasi yang dikirim pelanggan.
@@ -13364,17 +13519,128 @@ Saat pelanggan baru menyapa, balas dengan ramah dan tanyakan kebutuhannya terkai
     }
   );
 
-  const reply = response.data.output
+  const outputText = response.data.output
+  ?.flatMap((item) => item.content || [])
+  ?.filter((content) => content.type === "output_text")
+  ?.map((content) => content.text)
+  ?.join("\n")
+  ?.trim();
+
+if (!outputText) {
+  throw new Error("OpenAI tidak menghasilkan output");
+}
+
+let diagnosticOutput;
+
+try {
+  diagnosticOutput = JSON.parse(outputText);
+} catch (error) {
+  throw new Error("Output OpenAI bukan JSON yang valid");
+}
+
+let reply = diagnosticOutput.reply?.trim();
+let questionTarget = diagnosticOutput.questionTarget ?? null;
+
+  if (
+  questionTarget !== null &&
+  !isValidDiagnosticTarget(questionTarget)
+) {
+  questionTarget = null;
+
+  reply =
+    "Saya sudah mencatat informasi yang Anda berikan. Saya akan melanjutkan diagnosis hanya berdasarkan bukti yang valid.";
+}
+
+  if (
+  questionTarget &&
+  diagnosticCase.closedTargets.includes(questionTarget)
+) {
+  const originalRequestBody =
+  typeof response.config.data === "string"
+    ? JSON.parse(response.config.data)
+    : response.config.data || {};
+
+const retryResponse = await requestCorrectiveDiagnosticRetry(
+  originalRequestBody,
+  diagnosticCase.closedTargets
+);
+
+  const retryOutputText = retryResponse.data.output
     ?.flatMap((item) => item.content || [])
     ?.filter((content) => content.type === "output_text")
     ?.map((content) => content.text)
     ?.join("\n")
     ?.trim();
 
-  if (!reply) {
-    throw new Error("OpenAI tidak menghasilkan balasan");
-  }
+  if (!retryOutputText) {
+  questionTarget = null;
 
+  reply =
+    "Bukti yang sudah Anda berikan telah saya catat. Untuk saat ini saya tidak akan mengulang pertanyaan diagnostik yang sama.";
+}
+
+  let retryDiagnosticOutput = null;
+
+if (retryOutputText) {
+  try {
+    retryDiagnosticOutput = JSON.parse(retryOutputText);
+  } catch (error) {
+    questionTarget = null;
+
+    reply =
+      "Bukti yang sudah Anda berikan telah saya catat. Untuk saat ini saya tidak akan mengulang pertanyaan diagnostik yang sama.";
+  }
+}
+
+if (retryDiagnosticOutput) {
+  reply = retryDiagnosticOutput.reply?.trim();
+  questionTarget = retryDiagnosticOutput.questionTarget ?? null;
+}
+    
+    if (
+  questionTarget !== null &&
+  !isValidDiagnosticTarget(questionTarget)
+) {
+  questionTarget = null;
+
+  reply =
+    "Bukti yang sudah Anda berikan telah saya catat. Saya tidak akan melanjutkan dengan pertanyaan diagnostik yang tidak valid.";
+}
+
+if (
+  questionTarget &&
+  diagnosticCase.closedTargets.includes(questionTarget)
+) {
+  questionTarget = null;
+
+  reply =
+    "Bukti yang sudah Anda berikan telah saya catat dan tidak akan saya tanyakan kembali. Untuk saat ini saya tidak akan mengulang pertanyaan diagnostik yang sama.";
+}
+
+if (!reply) {
+  questionTarget = null;
+
+  reply =
+    "Bukti yang sudah Anda berikan telah saya catat. Untuk saat ini saya tidak akan mengulang pertanyaan diagnostik yang sama.";
+}
+}
+  
+if (!reply) {
+  throw new Error("OpenAI tidak menghasilkan balasan");
+}
+
+  if (questionTarget) {
+  diagnosticCase.currentQuestionTarget = questionTarget;
+
+  if (!diagnosticCase.askedQuestionTargets.includes(questionTarget)) {
+    diagnosticCase.askedQuestionTargets.push(questionTarget);
+  }
+} else {
+  diagnosticCase.currentQuestionTarget = null;
+}
+
+diagnosticCase.updatedAt = Date.now();
+  
   const updatedHistory = [
   ...history,
   `Pelanggan: ${userMessage}`,
