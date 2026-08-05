@@ -13789,6 +13789,7 @@ if (questionTarget === null || !reply) {
       "Bukti yang sudah Anda berikan telah saya catat. Data saat ini belum cukup untuk menentukan penyebab secara pasti.";
   }
 }
+ }
   
 if (!reply) {
   throw new Error("OpenAI tidak menghasilkan balasan");
