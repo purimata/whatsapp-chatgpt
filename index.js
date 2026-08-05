@@ -520,6 +520,32 @@ diagnosticCase.updatedAt = Date.now();
     userMessage
   );
 }
+
+  // Level 2.5.B — Pre-Model Escalation Gate.
+// Setelah jawaban terakhir dicatat, backend memeriksa apakah
+// wawancara diagnostik harus dihentikan dan beralih ke bukti objektif.
+if (
+  message.type === "text" &&
+  (diagnosticCase.evidencePipeline?.stage ?? "NONE") === "NONE" &&
+  shouldEscalateToEvidence(diagnosticCase)
+) {
+  const evidenceRequest =
+    requestObjectiveEvidence(diagnosticCase);
+
+  if (evidenceRequest) {
+    await sendWhatsAppMessage(
+      phoneNumberId,
+      senderNumber,
+      evidenceRequest
+    );
+
+    console.log(
+      `Objective evidence requested from ${senderNumber}`
+    );
+
+    return;
+  }
+}
   
   console.log(`Pesan dari ${senderNumber}: ${userMessage}`);
 
