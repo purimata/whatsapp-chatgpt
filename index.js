@@ -153,6 +153,196 @@ function closeSemanticSiblingTargets(diagnosticCase, target) {
   }
 }
 
+// Level 2.5.B.2 — Semantic Duplicate Detector.
+// Lapisan cadangan untuk mendeteksi pertanyaan yang berbeda kata,
+// tetapi memiliki makna diagnostik yang sama.
+
+const DIAGNOSTIC_QUESTION_STOP_WORDS = new Set([
+  "apa",
+  "apakah",
+  "berapa",
+  "bagaimana",
+  "bisa",
+  "dapat",
+  "anda",
+  "saya",
+  "yang",
+  "dan",
+  "atau",
+  "di",
+  "pada",
+  "saat",
+  "sesaat",
+  "sebelum",
+  "setelah",
+  "ketika",
+  "genset",
+  "mesin",
+  "terlihat",
+  "terbaca",
+  "menunjukkan",
+  "kondisi",
+  "terjadi",
+  "mulai"
+]);
+
+function normalizeDiagnosticQuestionText(text) {
+  return String(text || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function getDiagnosticQuestionTokens(text) {
+  const normalized =
+    normalizeDiagnosticQuestionText(text);
+
+  if (!normalized) {
+    return [];
+  }
+
+  return [
+    ...new Set(
+      normalized
+        .split(" ")
+        .filter(
+          (token) =>
+            token.length >= 3 &&
+            !DIAGNOSTIC_QUESTION_STOP_WORDS.has(token)
+        )
+    )
+  ];
+}
+
+function calculateTokenSimilarity(firstText, secondText) {
+  const firstTokens = new Set(
+    getDiagnosticQuestionTokens(firstText)
+  );
+
+  const secondTokens = new Set(
+    getDiagnosticQuestionTokens(secondText)
+  );
+
+  if (
+    firstTokens.size === 0 ||
+    secondTokens.size === 0
+  ) {
+    return 0;
+  }
+
+  let intersectionCount = 0;
+
+  for (const token of firstTokens) {
+    if (secondTokens.has(token)) {
+      intersectionCount += 1;
+    }
+  }
+
+  const unionCount =
+    new Set([
+      ...firstTokens,
+      ...secondTokens
+    ]).size;
+
+  return unionCount > 0
+    ? intersectionCount / unionCount
+    : 0;
+}
+
+function isSemanticDuplicateDiagnosticQuestion(
+  diagnosticCase,
+  candidateQuestion,
+  candidateTarget
+) {
+  if (!diagnosticCase) {
+    return false;
+  }
+
+  // Target-ID tetap menjadi pemeriksaan utama.
+  if (
+    candidateTarget &&
+    (
+      diagnosticCase.closedTargets?.includes(
+        candidateTarget
+      ) ||
+      diagnosticCase.askedQuestionTargets?.includes(
+        candidateTarget
+      ) ||
+      Object.prototype.hasOwnProperty.call(
+        diagnosticCase.evidenceState?.confirmed || {},
+        candidateTarget
+      ) ||
+      Object.prototype.hasOwnProperty.call(
+        diagnosticCase.evidenceState?.unknown || {},
+        candidateTarget
+      )
+    )
+  ) {
+    return true;
+  }
+
+  const normalizedCandidate =
+    normalizeDiagnosticQuestionText(
+      candidateQuestion
+    );
+
+  if (!normalizedCandidate) {
+    return false;
+  }
+
+  const previousQuestions =
+    diagnosticCase.askedQuestionTexts || [];
+
+  for (const previousQuestion of previousQuestions) {
+    const normalizedPrevious =
+      normalizeDiagnosticQuestionText(
+        previousQuestion
+      );
+
+    if (!normalizedPrevious) {
+      continue;
+    }
+
+    // Sama persis setelah normalisasi.
+    if (
+      normalizedCandidate === normalizedPrevious
+    ) {
+      return true;
+    }
+
+    // Salah satu hanya merupakan versi lebih panjang
+    // dari pertanyaan yang sama.
+    if (
+      normalizedCandidate.length >= 18 &&
+      normalizedPrevious.length >= 18 &&
+      (
+        normalizedCandidate.includes(
+          normalizedPrevious
+        ) ||
+        normalizedPrevious.includes(
+          normalizedCandidate
+        )
+      )
+    ) {
+      return true;
+    }
+
+    // Kemiripan token tinggi menunjukkan parafrase.
+    const similarity =
+      calculateTokenSimilarity(
+        normalizedCandidate,
+        normalizedPrevious
+      );
+
+    if (similarity >= 0.72) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 const DIAGNOSTIC_OUTPUT_SCHEMA = {
   type: "object",
   properties: {
@@ -236,7 +426,8 @@ function createDiagnosticCase(senderNumber) {
     closedTargets: [],
 
     askedQuestionTargets: [],
-
+askedQuestionTexts: [],
+    
     currentQuestionTarget: null,
 
     diagnosticStage: "INITIAL",
@@ -704,6 +895,72 @@ Dilarang meminta kembali informasi yang sudah terdapat di:
 - atau pesan pelanggan terbaru.
 
 Satu respons hanya boleh memiliki SATU pertanyaan diagnostik baru.
+
+=== BACKEND AUTHORITY & DIAGNOSTIC EXIT POLICY ===
+
+CASE_STATE adalah otoritas final untuk kasus diagnostik saat ini.
+Riwayat percakapan tidak boleh mengalahkan atau membuka kembali keputusan yang sudah tercatat dalam CASE_STATE.
+
+1. CLOSED TARGET LOCK
+- Semua target di closedTargets dianggap selesai dan terkunci.
+- Target di closedTargets DILARANG dipilih kembali sebagai questionTarget.
+- Jangan menanyakan ulang target tersebut dengan kata, susunan, atau parafrase berbeda.
+- Larangan tetap berlaku walaupun target tersebut dianggap penting secara teknis.
+
+2. ASKED TARGET LOCK
+- Semua target di askedQuestionTargets sudah pernah ditanyakan.
+- Target tersebut DILARANG dipilih kembali sebagai questionTarget.
+- Jawaban "tidak tahu", "belum dicek", "tidak terlihat", atau jawaban tidak tersedia tetap menutup target tersebut.
+- Jangan mencoba memperoleh informasi yang sama melalui pertanyaan lain yang maknanya setara.
+
+3. NO REOPEN POLICY
+- Jangan membuka kembali target dari evidenceState.confirmed.
+- Jangan membuka kembali target dari evidenceState.unknown.
+- Jangan membuka kembali target dari closedTargets.
+- Jangan membuka kembali target dari askedQuestionTargets.
+- Jangan mengubah fakta UNKNOWN menjadi pertanyaan baru hanya karena bukti belum cukup.
+
+4. BACKEND STATE PRIORITY
+Urutan otoritas yang wajib diikuti:
+a. evidenceState.confirmed;
+b. evidenceState.unknown;
+c. closedTargets;
+d. askedQuestionTargets;
+e. currentQuestionTarget;
+f. riwayat percakapan.
+
+Jika riwayat percakapan bertentangan dengan CASE_STATE, ikuti CASE_STATE.
+
+5. QUESTION BUDGET
+- Buat pertanyaan hanya jika target benar-benar baru, belum ditanyakan, belum ditutup, dan memiliki nilai diagnostik yang jelas.
+- Jangan bertanya hanya untuk menjaga percakapan tetap berjalan.
+- Jangan menghabiskan seluruh daftar target bila bukti pelanggan sudah menunjukkan bahwa data objektif diperlukan.
+- Setelah nilai diagnostik pertanyaan teks menurun, hentikan wawancara teks.
+
+6. CAUSAL FORWARD PROGRESS
+Setiap pertanyaan baru wajib:
+- bergerak ke target yang belum pernah diperiksa;
+- menghasilkan informasi yang dapat membedakan kemungkinan penyebab;
+- tidak mengulang makna dari pertanyaan sebelumnya;
+- tidak kembali ke tahap diagnostik yang sudah selesai.
+
+7. DIAGNOSTIC EXIT
+Jika tidak ada target baru yang sah dan bernilai diagnostik:
+- jangan membuat pertanyaan tambahan;
+- jangan memilih target lama;
+- set questionTarget menjadi null;
+- jelaskan secara singkat bahwa bukti teks belum cukup;
+- arahkan alur menuju permintaan bukti objektif seperti foto display controller, area mesin, jalur bahan bakar, nameplate, atau hasil pengukuran yang relevan.
+
+8. OUTPUT ENFORCEMENT
+Sebelum mengeluarkan questionTarget, lakukan pemeriksaan akhir:
+- questionTarget tidak berada dalam closedTargets;
+- questionTarget tidak berada dalam askedQuestionTargets;
+- questionTarget tidak berada dalam evidenceState.confirmed;
+- questionTarget tidak berada dalam evidenceState.unknown;
+- pertanyaannya bukan parafrase dari pertanyaan sebelumnya.
+
+Jika salah satu pemeriksaan gagal, questionTarget wajib null.
 
 Jika tidak ada pertanyaan baru yang memiliki nilai diagnostik lebih tinggi, jangan membuat pertanyaan hanya untuk mempertahankan percakapan. Minta bukti objektif yang relevan atau nyatakan bahwa bukti belum cukup untuk mempersempit penyebab.
 Jika pelanggan mengirim foto:
