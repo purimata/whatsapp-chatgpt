@@ -49,6 +49,92 @@ function isValidDiagnosticTarget(target) {
   );
 }
 
+function selectNextDiagnosticTarget(diagnosticCase) {
+  const priority = [
+    "alarmFault",
+    "controllerDisplay",
+    "shutdownCondition",
+    "fuelCondition",
+    "oilPressure",
+    "coolantTemperature",
+    "batteryVoltage",
+    "engineSpeed",
+    "generatorFrequency",
+    "generatorVoltage",
+    "breakerCondition",
+    "atsCondition",
+    "emergencyStop",
+    "wiringCondition",
+    "visualEvidence",
+    "nameplateData"
+  ];
+
+  for (const target of priority) {
+    if (
+      !diagnosticCase.closedTargets.includes(target) &&
+      !diagnosticCase.askedQuestionTargets.includes(target)
+    ) {
+      return target;
+    }
+  }
+
+  return null;
+}
+
+function buildFallbackDiagnosticQuestion(target) {
+  const questions = {
+    alarmFault:
+      "Saat genset mati, apakah muncul alarm atau kode fault di controller?",
+
+    controllerDisplay:
+      "Saat genset mati, apakah display controller tetap menyala atau mati/restart?",
+
+    shutdownCondition:
+      "Sesaat sebelum genset mati, apakah putaran mesin turun perlahan, tersendat, atau langsung berhenti?",
+
+    fuelCondition:
+      "Saat gejala mulai terjadi, apakah suplai bahan bakar terlihat tetap normal atau ada tanda aliran bahan bakar terganggu?",
+
+    oilPressure:
+      "Berapa tekanan oli yang terbaca di controller sesaat sebelum putaran mesin mulai turun?",
+
+    coolantTemperature:
+      "Berapa temperatur coolant yang terbaca sesaat sebelum genset mati?",
+
+    batteryVoltage:
+      "Berapa tegangan baterai yang terbaca saat genset sedang hidup sebelum gejala muncul?",
+
+    engineSpeed:
+      "Berapa RPM yang terbaca sesaat sebelum putaran mulai turun?",
+
+    generatorFrequency:
+      "Berapa frekuensi generator yang terbaca sesaat sebelum genset mati?",
+
+    generatorVoltage:
+      "Berapa tegangan keluaran generator yang terbaca sesaat sebelum genset mati?",
+
+    breakerCondition:
+      "Saat genset mulai mengalami gejala, apakah breaker output genset tetap ON atau berubah posisi?",
+
+    atsCondition:
+      "Saat genset mulai mengalami gejala, apakah ada perubahan kondisi atau perpindahan pada panel ATS?",
+
+    emergencyStop:
+      "Apakah emergency stop dalam kondisi normal dan tidak aktif saat kejadian?",
+
+    wiringCondition:
+      "Apakah terlihat koneksi atau kabel yang longgar, panas, berubah warna, atau tidak normal tanpa menyentuh bagian bertegangan?",
+
+    visualEvidence:
+      "Bisa kirim foto controller atau bagian genset saat gejala terjadi agar saya dapat memeriksa bukti visualnya?",
+
+    nameplateData:
+      "Bisa kirim foto nameplate genset atau mesin yang tulisannya terlihat jelas?"
+  };
+
+  return questions[target] || null;
+}
+
 const DIAGNOSTIC_OUTPUT_SCHEMA = {
   type: "object",
   properties: {
@@ -13604,6 +13690,23 @@ let questionTarget = diagnosticOutput.questionTarget ?? null;
     "Saya sudah mencatat informasi yang Anda berikan. Saya akan melanjutkan diagnosis hanya berdasarkan bukti yang valid.";
 }
 
+  // Deterministic fallback:
+// Backend memilih target berikutnya dan memastikan
+// questionTarget serta teks reply selalu sinkron.
+if (questionTarget === null) {
+  const fallbackTarget = selectNextDiagnosticTarget(diagnosticCase);
+
+  if (fallbackTarget !== null) {
+    const fallbackQuestion =
+      buildFallbackDiagnosticQuestion(fallbackTarget);
+
+    if (fallbackQuestion !== null) {
+      questionTarget = fallbackTarget;
+      reply = fallbackQuestion;
+    }
+  }
+}
+  
   if (
   questionTarget &&
   diagnosticCase.closedTargets.includes(questionTarget)
