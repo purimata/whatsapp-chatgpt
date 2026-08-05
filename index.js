@@ -284,9 +284,9 @@ function applyCurrentAnswerToEvidence(
   diagnosticCase,
   userMessage
 ) {
-  const target = diagnosticCase.currentQuestionTarget;
+  const target = diagnosticCase?.currentQuestionTarget;
 
-  if (!target) {
+  if (!diagnosticCase || !target) {
     return;
   }
 
@@ -296,11 +296,63 @@ function applyCurrentAnswerToEvidence(
     return;
   }
 
-  lockEvidence(
-    diagnosticCase,
-    target,
-    value
+  const normalizedValue = value
+    .toLowerCase()
+    .replace(/[.,!?;:]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  const unknownPatterns = [
+    "tidak tahu",
+    "tidak tau",
+    "kurang tahu",
+    "kurang tau",
+    "belum tahu",
+    "belum tau",
+    "saya tidak tahu",
+    "saya tidak tau",
+    "belum dicek",
+    "belum diperiksa",
+    "tidak dicek",
+    "tidak diperiksa",
+    "tidak sempat melihat",
+    "tidak sempat mengecek",
+    "tidak sempat memeriksa",
+    "tidak ingat",
+    "tidak terlihat",
+    "tidak dapat melihat",
+    "tidak bisa melihat"
+  ];
+
+  const isUnknown = unknownPatterns.some(
+    (pattern) =>
+      normalizedValue === pattern ||
+      normalizedValue.includes(pattern)
   );
+
+  if (isUnknown) {
+    diagnosticCase.evidenceState.unknown[target] = value;
+
+    delete diagnosticCase.evidenceState.confirmed[target];
+    delete diagnosticCase.evidenceState.hypotheses[target];
+
+    if (!diagnosticCase.closedTargets.includes(target)) {
+      diagnosticCase.closedTargets.push(target);
+    }
+
+    closeSemanticSiblingTargets(
+      diagnosticCase,
+      target
+    );
+
+    diagnosticCase.updatedAt = Date.now();
+  } else {
+    lockEvidence(
+      diagnosticCase,
+      target,
+      value
+    );
+  }
 
   diagnosticCase.currentQuestionTarget = null;
 }
