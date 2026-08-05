@@ -14,6 +14,29 @@ const processedMessages = new Set();
 
 // Memory percakapan setiap nomor WhatsApp
 const conversationMemory = new Map();
+
+// State diagnostik terstruktur untuk setiap nomor WhatsApp
+const diagnosticCases = new Map();
+
+function createDiagnosticCase(senderNumber) {
+  return {
+    senderNumber,
+    caseId: `${senderNumber}-${Date.now()}`,
+
+    knownEvidence: {},
+
+    closedTargets: [],
+
+    askedQuestionTargets: [],
+
+    currentQuestionTarget: null,
+
+    diagnosticStage: "INITIAL",
+
+    createdAt: Date.now(),
+    updatedAt: Date.now()
+  };
+}
 app.get("/", (req, res) => {
   res.status(200).send("WhatsApp ChatGPT Bot is Running!");
 });
@@ -59,6 +82,15 @@ async function processWebhook(body) {
   const messageId = message.id;
   const senderNumber = message.from;
 
+  // Ambil atau buat state diagnostik pelanggan
+let diagnosticCase = diagnosticCases.get(senderNumber);
+
+if (!diagnosticCase) {
+  diagnosticCase = createDiagnosticCase(senderNumber);
+  diagnosticCases.set(senderNumber, diagnosticCase);
+}
+
+diagnosticCase.updatedAt = Date.now();
   if (processedMessages.has(messageId)) {
     return;
   }
@@ -88,7 +120,12 @@ async function processWebhook(body) {
   console.log(`Pesan dari ${senderNumber}: ${userMessage}`);
 
   try {
-    const aiReply = await askOpenAI(userMessage, senderNumber, imageId);
+    const aiReply = await askOpenAI(
+  userMessage,
+  senderNumber,
+  imageId,
+  diagnosticCase
+);
 
     await sendWhatsAppMessage(
       phoneNumberId,
@@ -142,7 +179,12 @@ async function processWebhook(body) {
     return `data:${mimeType};base64,${base64Image}`;
 }
 
-    async function askOpenAI(userMessage, senderNumber, imageId) {
+async function askOpenAI(
+  userMessage,
+  senderNumber,
+  imageId,
+  diagnosticCase
+) {
   if (!OPENAI_API_KEY) {
     throw new Error("OPENAI_API_KEY belum tersedia di Railway");
   }
@@ -157,7 +199,23 @@ async function processWebhook(body) {
   ...history,
   `Pelanggan: ${userMessage}`
 ].join("\n");
-  
+
+ const caseStateText = JSON.stringify(
+  {
+    caseId: diagnosticCase.caseId,
+    knownEvidence: diagnosticCase.knownEvidence,
+    closedTargets: diagnosticCase.closedTargets,
+    askedQuestionTargets: diagnosticCase.askedQuestionTargets,
+    currentQuestionTarget: diagnosticCase.currentQuestionTarget,
+    diagnosticStage: diagnosticCase.diagnosticStage
+  },
+  null,
+  2
+); 
+  const modelInputText = `${conversationText}
+
+CASE_STATE:
+${caseStateText}`;
   const response = await axios.post(
     "https://api.openai.com/v1/responses",
     {
@@ -13285,7 +13343,7 @@ Saat pelanggan baru menyapa, balas dengan ramah dan tanyakan kebutuhannya terkai
             content: [
                 {
                     type: "input_text",
-                    text: conversationText
+                    text: modelInputText
                 },
                 {
                     type: "input_image",
@@ -13294,7 +13352,7 @@ Saat pelanggan baru menyapa, balas dengan ramah dan tanyakan kebutuhannya terkai
             ]
         }
     ]
-    : conversationText,
+    : modelInputText,
       max_output_tokens: 500
     },
     {
