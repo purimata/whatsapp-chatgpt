@@ -870,6 +870,16 @@ if (
       `Human handoff required for ${senderNumber}: ${diagnosticCase.handoff.reason}`
     );
 
+      // Level 2.5.C.1 - Close lifecycle after successful human handoff.
+  // Pesan berikutnya dari nomor yang sama harus memulai diagnostic case baru.
+  diagnosticCases.delete(senderNumber);
+
+  conversationMemory.delete(senderNumber);
+
+  console.log(
+    `[DIAG][CASE-CLOSED] ${senderNumber} - state cleared after human handoff`
+  );
+    
     return;
   }
 }
