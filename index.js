@@ -593,7 +593,28 @@ function shouldEscalateToEvidence(diagnosticCase) {
   const tooManyQuestions =
     totalAsked >= 10;
 
+  // Jika user sudah menyatakan unit/bukti tidak dapat diperiksa,
+  // jangan terus menghabiskan diagnostic question budget.
+  const unavailableEvidence =
+    Object.values(
+      diagnosticCase.evidenceState?.unknown || {}
+    ).some(value => {
+      const text = String(value || "").toLowerCase();
+
+      return (
+        text.includes("tidak bisa diperiksa") ||
+        text.includes("tidak dapat diperiksa") ||
+        text.includes("tidak bisa di periksa") ||
+        text.includes("tidak dapat di periksa") ||
+        text.includes("tidak bisa dicek") ||
+        text.includes("tidak dapat dicek") ||
+        text.includes("tidak bisa di cek") ||
+        text.includes("tidak dapat di cek")
+      );
+    });
+
   return (
+    unavailableEvidence ||
     noRemainingTargets ||
     tooManyUnknown ||
     tooManyQuestions
