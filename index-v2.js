@@ -231,9 +231,14 @@ rememberProcessedMessage(messageId);
     
     return res.sendStatus(200);
   } catch (error) {
-    console.error("Inbound webhook error:", error);
-    return res.sendStatus(200);
-  }
+  console.error("Inbound webhook error:", {
+    message: error.message,
+    status: error.response?.status || null,
+    metaError: error.response?.data?.error || null
+  });
+
+  return res.sendStatus(200);
+}
 });
 
 app.listen(PORT, () => {
