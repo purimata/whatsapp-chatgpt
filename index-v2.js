@@ -7,6 +7,23 @@ const PORT = process.env.PORT || 3000;
 
 const VERIFY_TOKEN = process.env.VERIFY_TOKEN;
 
+// V2.1F.1 - Processed Message Registry
+const processedMessageIds = new Map();
+
+const MESSAGE_DEDUP_TTL_MS = 10 * 60 * 1000;
+
+function rememberProcessedMessage(messageId) {
+  processedMessageIds.set(messageId, Date.now());
+
+  setTimeout(() => {
+    processedMessageIds.delete(messageId);
+  }, MESSAGE_DEDUP_TTL_MS);
+}
+
+function wasMessageProcessed(messageId) {
+  return processedMessageIds.has(messageId);
+}
+
 app.use(express.json());
 
 // PURIMATA Bot V2 - Health Check
@@ -49,7 +66,7 @@ app.post("/webhook", (req, res) => {
     const messageId = message.id;
     const from = message.from;
     const type = message.type;
-
+    
     // Normalisasi pesan WhatsApp ke format internal V2
 const normalizedMessage = {
   messageId,
@@ -106,6 +123,14 @@ if (type !== "text" && !normalizedMessage.mediaId) {
   console.log(`WhatsApp ${type} message without media ID ignored`);
   return res.sendStatus(200);
 }
+
+    // V2.1F.2 - Duplicate Message Guard
+if (wasMessageProcessed(messageId)) {
+  console.log(`Duplicate WhatsApp message ignored: ${messageId}`);
+  return res.sendStatus(200);
+}
+
+rememberProcessedMessage(messageId);
     
 console.log("WhatsApp inbound message:", normalizedMessage);
 
