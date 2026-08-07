@@ -136,7 +136,7 @@ app.get("/webhook", (req, res) => {
 });
 
 // WhatsApp Inbound Message Receiver
-app.post("/webhook", (req, res) => {
+app.post("/webhook", async (req, res) => {
   try {
     const entry = req.body?.entry?.[0];
     const change = entry?.changes?.[0];
