@@ -50,11 +50,35 @@ app.post("/webhook", (req, res) => {
     const from = message.from;
     const type = message.type;
 
-    console.log("WhatsApp inbound message:", {
-      messageId,
-      from,
-      type
-    });
+    // Normalisasi pesan WhatsApp ke format internal V2
+const normalizedMessage = {
+  messageId,
+  from,
+  type,
+  text:
+    type === "text"
+      ? message.text?.body?.trim() || ""
+      : type === "image"
+        ? message.image?.caption?.trim() || ""
+        : type === "document"
+          ? message.document?.caption?.trim() || ""
+          : type === "video"
+            ? message.video?.caption?.trim() || ""
+            : "",
+  mediaId:
+    type === "image"
+      ? message.image?.id || null
+      : type === "audio"
+        ? message.audio?.id || null
+        : type === "document"
+          ? message.document?.id || null
+          : type === "video"
+            ? message.video?.id || null
+            : null,
+  timestamp: message.timestamp || null
+};
+
+console.log("WhatsApp inbound message:", normalizedMessage);
 
     return res.sendStatus(200);
   } catch (error) {
