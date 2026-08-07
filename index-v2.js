@@ -10,6 +10,7 @@ const VERIFY_TOKEN = process.env.VERIFY_TOKEN;
 const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
 const GRAPH_API_VERSION = process.env.GRAPH_API_VERSION || "v26.0";
 const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID;
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
 // V2.1F.1 - Processed Message Registry
 const processedMessageIds = new Map();
@@ -66,6 +67,46 @@ async function sendWhatsAppText(recipient, text) {
       timeout: 30000
     }
   );
+}
+
+// V2.1H.2 - OpenAI Text Request Foundation
+async function askOpenAI(userText) {
+  if (!OPENAI_API_KEY) {
+    throw new Error("OPENAI_API_KEY is not configured");
+  }
+
+  if (!userText || !String(userText).trim()) {
+    throw new Error("OpenAI input text is empty");
+  }
+
+  const response = await axios.post(
+    "https://api.openai.com/v1/responses",
+    {
+      model: "gpt-5.4-mini",
+      input: String(userText).trim(),
+      max_output_tokens: 500
+    },
+    {
+      headers: {
+        Authorization: `Bearer ${OPENAI_API_KEY}`,
+        "Content-Type": "application/json"
+      },
+      timeout: 45000
+    }
+  );
+
+  const outputText = response.data?.output
+    ?.flatMap(item => item?.content || [])
+    ?.filter(item => item?.type === "output_text")
+    ?.map(item => item?.text || "")
+    ?.join("")
+    ?.trim();
+
+  if (!outputText) {
+    throw new Error("OpenAI returned no text output");
+  }
+
+  return outputText;
 }
 
 app.use(express.json());
@@ -176,13 +217,15 @@ if (wasMessageProcessed(messageId)) {
    
 console.log("WhatsApp inbound message:", normalizedMessage);
 
-    // V2.1G.3 - Controlled Outbound Smoke Test
+   // V2.1H.3 - Controlled OpenAI Smoke Test
 if (normalizedMessage.type === "text") {
+  const aiReply = await askOpenAI(normalizedMessage.text);
+
   await sendWhatsAppText(
     normalizedMessage.from,
-    "PURIMATA Bot V2 berhasil menerima pesan Anda."
+    aiReply
   );
-}
+} 
 
 rememberProcessedMessage(messageId);
     
