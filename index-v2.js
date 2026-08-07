@@ -78,6 +78,35 @@ const normalizedMessage = {
   timestamp: message.timestamp || null
 };
 
+    // V2.1E - Inbound Message Validation
+const supportedTypes = new Set([
+  "text",
+  "image",
+  "audio",
+  "document",
+  "video"
+]);
+
+if (!messageId || !from || !type) {
+  console.warn("Invalid WhatsApp message: missing required fields");
+  return res.sendStatus(200);
+}
+
+if (!supportedTypes.has(type)) {
+  console.log(`Unsupported WhatsApp message type ignored: ${type}`);
+  return res.sendStatus(200);
+}
+
+if (type === "text" && !normalizedMessage.text) {
+  console.log("Empty WhatsApp text message ignored");
+  return res.sendStatus(200);
+}
+
+if (type !== "text" && !normalizedMessage.mediaId) {
+  console.log(`WhatsApp ${type} message without media ID ignored`);
+  return res.sendStatus(200);
+}
+    
 console.log("WhatsApp inbound message:", normalizedMessage);
 
     return res.sendStatus(200);
