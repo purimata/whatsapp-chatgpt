@@ -33,6 +33,36 @@ app.get("/webhook", (req, res) => {
   return res.sendStatus(403);
 });
 
+// WhatsApp Inbound Message Receiver
+app.post("/webhook", (req, res) => {
+  try {
+    const entry = req.body?.entry?.[0];
+    const change = entry?.changes?.[0];
+    const value = change?.value;
+    const message = value?.messages?.[0];
+
+    // Webhook WhatsApp juga mengirim event selain pesan customer.
+    if (!message) {
+      return res.sendStatus(200);
+    }
+
+    const messageId = message.id;
+    const from = message.from;
+    const type = message.type;
+
+    console.log("WhatsApp inbound message:", {
+      messageId,
+      from,
+      type
+    });
+
+    return res.sendStatus(200);
+  } catch (error) {
+    console.error("Inbound webhook error:", error);
+    return res.sendStatus(200);
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`PURIMATA Bot V2 running on port ${PORT}`);
 });
