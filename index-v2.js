@@ -5,6 +5,8 @@ const express = require("express");
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+const VERIFY_TOKEN = process.env.VERIFY_TOKEN;
+
 app.use(express.json());
 
 // PURIMATA Bot V2 - Health Check
@@ -14,6 +16,21 @@ app.get("/", (req, res) => {
     service: "PURIMATA Bot V2",
     version: "2.1A"
   });
+});
+
+// WhatsApp Webhook Verification
+app.get("/webhook", (req, res) => {
+  const mode = req.query["hub.mode"];
+  const token = req.query["hub.verify_token"];
+  const challenge = req.query["hub.challenge"];
+
+  if (mode === "subscribe" && token === VERIFY_TOKEN) {
+    console.log("WhatsApp webhook verified");
+    return res.status(200).send(challenge);
+  }
+
+  console.warn("WhatsApp webhook verification failed");
+  return res.sendStatus(403);
 });
 
 app.listen(PORT, () => {
