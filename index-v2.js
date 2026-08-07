@@ -1,11 +1,15 @@
 "use strict";
 
 const express = require("express");
+const axios = require("axios");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 const VERIFY_TOKEN = process.env.VERIFY_TOKEN;
+const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
+const GRAPH_API_VERSION = process.env.GRAPH_API_VERSION || "v26.0";
+const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID;
 
 // V2.1F.1 - Processed Message Registry
 const processedMessageIds = new Map();
@@ -22,6 +26,46 @@ function rememberProcessedMessage(messageId) {
 
 function wasMessageProcessed(messageId) {
   return processedMessageIds.has(messageId);
+}
+
+// V2.1G.2 - WhatsApp Text Sender
+async function sendWhatsAppText(recipient, text) {
+  if (!WHATSAPP_TOKEN) {
+    throw new Error("WHATSAPP_TOKEN is not configured");
+  }
+
+  if (!PHONE_NUMBER_ID) {
+    throw new Error("PHONE_NUMBER_ID is not configured");
+  }
+
+  if (!recipient) {
+    throw new Error("WhatsApp recipient is required");
+  }
+
+  if (!text || !String(text).trim()) {
+    throw new Error("WhatsApp text message is empty");
+  }
+
+  await axios.post(
+    `https://graph.facebook.com/${GRAPH_API_VERSION}/${PHONE_NUMBER_ID}/messages`,
+    {
+      messaging_product: "whatsapp",
+      recipient_type: "individual",
+      to: recipient,
+      type: "text",
+      text: {
+        preview_url: false,
+        body: String(text).trim()
+      }
+    },
+    {
+      headers: {
+        Authorization: `Bearer ${WHATSAPP_TOKEN}`,
+        "Content-Type": "application/json"
+      },
+      timeout: 30000
+    }
+  );
 }
 
 app.use(express.json());
