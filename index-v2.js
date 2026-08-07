@@ -173,11 +173,19 @@ if (wasMessageProcessed(messageId)) {
   console.log(`Duplicate WhatsApp message ignored: ${messageId}`);
   return res.sendStatus(200);
 }
+   
+console.log("WhatsApp inbound message:", normalizedMessage);
+
+    // V2.1G.3 - Controlled Outbound Smoke Test
+if (normalizedMessage.type === "text") {
+  await sendWhatsAppText(
+    normalizedMessage.from,
+    "PURIMATA Bot V2 berhasil menerima pesan Anda."
+  );
+}
 
 rememberProcessedMessage(messageId);
     
-console.log("WhatsApp inbound message:", normalizedMessage);
-
     return res.sendStatus(200);
   } catch (error) {
     console.error("Inbound webhook error:", error);
