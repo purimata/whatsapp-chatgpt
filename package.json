@@ -4,7 +4,8 @@
   "description": "WhatsApp ChatGPT Bot",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js"
+    "start": "node index.js",
+    "start:v2": "node index-v2.js"
   },
   "dependencies": {
     "axios": "^1.6.8",
