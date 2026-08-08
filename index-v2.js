@@ -442,6 +442,43 @@ if (conversationRoute === "human_handoff") {
     normalizedMessage.from
   );
 }
+
+        // V2.2C.3E.2 - Confirmed Diagnostic Evidence Ingestion
+    if (
+      conversationRoute === "diagnostic_flow" &&
+      normalizedMessage.type === "text" &&
+      normalizedMessage.text
+    ) {
+      const diagnosticText = normalizedMessage.text
+        .trim()
+        .toLowerCase();
+
+      if (
+        diagnosticText.includes("starter berputar") ||
+        diagnosticText.includes("starter muter") ||
+        diagnosticText.includes("cranking") ||
+        diagnosticText.includes("mesin berputar")
+      ) {
+        rememberDiagnosticEvidence(
+          normalizedMessage.from,
+          "starterCranking",
+          true
+        );
+      }
+
+      if (
+        diagnosticText.includes("tidak ada alarm") ||
+        diagnosticText.includes("tidak ada kode fault") ||
+        diagnosticText.includes("tidak ada fault") ||
+        diagnosticText.includes("tanpa alarm")
+      ) {
+        rememberDiagnosticEvidence(
+          normalizedMessage.from,
+          "alarmOrFaultPresent",
+          false
+        );
+      }
+    }
     
 console.log("Conversation route:", {
   from: normalizedMessage.from,
