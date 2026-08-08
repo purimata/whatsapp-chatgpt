@@ -29,6 +29,39 @@ function wasMessageProcessed(messageId) {
   return processedMessageIds.has(messageId);
 }
 
+// V2.2C.3D.1 - Conversation Route State Registry
+const conversationRouteState = new Map();
+
+const CONVERSATION_ROUTE_TTL_MS = 30 * 60 * 1000;
+
+function rememberConversationRoute(from, route) {
+  if (!from || !route) return;
+
+  conversationRouteState.set(from, {
+    route,
+    updatedAt: Date.now()
+  });
+}
+
+function getRememberedConversationRoute(from) {
+  if (!from) return null;
+
+  const state = conversationRouteState.get(from);
+  if (!state) return null;
+
+  if (Date.now() - state.updatedAt > CONVERSATION_ROUTE_TTL_MS) {
+    conversationRouteState.delete(from);
+    return null;
+  }
+
+  return state.route;
+}
+
+function clearRememberedConversationRoute(from) {
+  if (!from) return;
+  conversationRouteState.delete(from);
+}
+
 // V2.1G.2 - WhatsApp Text Sender
 async function sendWhatsAppText(recipient, text) {
   if (!WHATSAPP_TOKEN) {
@@ -324,6 +357,17 @@ if (
   );
 }
 
+    // V2.2C.3D.2A - Diagnostic Continuity Intent Override
+const rememberedConversationRoute =
+  getRememberedConversationRoute(normalizedMessage.from);
+
+if (
+  rememberedConversationRoute === "diagnostic_flow" &&
+  (conversationIntent === "general" || conversationIntent === "greeting")
+) {
+  conversationIntent = "diagnostic";
+}
+    
 normalizedMessage.intent = conversationIntent;
 
 console.log("Conversation intent:", {
@@ -346,6 +390,20 @@ const conversationRoute =
 
 normalizedMessage.route = conversationRoute;
 
+    // V2.2C.3D.2B - Route State Update
+if (conversationRoute === "diagnostic_flow") {
+  rememberConversationRoute(
+    normalizedMessage.from,
+    conversationRoute
+  );
+}
+
+if (conversationRoute === "human_handoff") {
+  clearRememberedConversationRoute(
+    normalizedMessage.from
+  );
+}
+    
 console.log("Conversation route:", {
   from: normalizedMessage.from,
   intent: conversationIntent,
