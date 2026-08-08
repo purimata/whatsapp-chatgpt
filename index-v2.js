@@ -367,13 +367,23 @@ if (normalizedMessage.type === "text") {
         "Baik, saya akan arahkan percakapan ini ke Admin/teknisi Purimata.";
       break;
 
-    case "technical_flow":
-    case "diagnostic_flow":
-    case "general_ai":
-    default:
-      replyText = await askOpenAI(normalizedMessage.text);
-      break;
-  }
+    // V2.2C.3A - Separate Route Execution Branches
+case "technical_flow":
+  replyText = await askOpenAI(normalizedMessage.text);
+  break;
+
+case "diagnostic_flow":
+  replyText = await askOpenAI(normalizedMessage.text);
+  break;
+
+case "general_ai":
+  replyText = await askOpenAI(normalizedMessage.text);
+  break;
+
+default:
+  console.warn("Unknown conversation route:", conversationRoute);
+  replyText = await askOpenAI(normalizedMessage.text);
+  break;
 
   if (replyText) {
     await sendWhatsAppText(
