@@ -330,6 +330,27 @@ console.log("Conversation intent:", {
   from: normalizedMessage.from,
   intent: conversationIntent
 });
+
+    // V2.2C.1 - Conversation Route Decision
+const conversationRouteMap = {
+  greeting: "general_ai",
+  general: "general_ai",
+  sales: "sales_flow",
+  technical: "technical_flow",
+  diagnostic: "diagnostic_flow",
+  handoff: "human_handoff"
+};
+
+const conversationRoute =
+  conversationRouteMap[conversationIntent] || "general_ai";
+
+normalizedMessage.route = conversationRoute;
+
+console.log("Conversation route:", {
+  from: normalizedMessage.from,
+  intent: conversationIntent,
+  route: conversationRoute
+});
     
    // V2.1H.3 - Controlled OpenAI Smoke Test
 if (normalizedMessage.type === "text") {
