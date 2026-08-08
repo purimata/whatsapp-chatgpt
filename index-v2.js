@@ -478,6 +478,20 @@ if (conversationRoute === "human_handoff") {
           false
         );
       }
+
+          // V2.2C.3E.5 - Exhaust Smoke Evidence
+    if (
+      diagnosticText.includes("tidak ada asap") ||
+      diagnosticText.includes("tidak keluar asap") ||
+      diagnosticText.includes("tidak terlihat asap") ||
+      diagnosticText.includes("tanpa asap")
+    ) {
+      rememberDiagnosticEvidence(
+        normalizedMessage.from,
+        "exhaustSmokePresent",
+        false
+      );
+    } 
     }
     
 console.log("Conversation route:", {
@@ -558,6 +572,12 @@ BUKTI DIAGNOSTIK YANG SUDAH DIKONFIRMASI CUSTOMER:
 - Alarm/kode fault muncul: ${
   diagnosticEvidence.alarmOrFaultPresent === true ? "YA" :
   diagnosticEvidence.alarmOrFaultPresent === false ? "TIDAK" :
+  "BELUM DIKETAHUI"
+}
+
+- Asap dari knalpot saat cranking: ${
+  diagnosticEvidence.exhaustSmokePresent === true ? "YA" :
+  diagnosticEvidence.exhaustSmokePresent === false ? "TIDAK" :
   "BELUM DIKETAHUI"
 }
 
