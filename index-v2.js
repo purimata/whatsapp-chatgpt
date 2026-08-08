@@ -542,8 +542,36 @@ ${normalizedMessage.text}
 }
 
     case "diagnostic_flow": {
+
+      // V2.2C.3E.3 - Diagnostic Evidence Context Injection
+const diagnosticEvidence = getDiagnosticEvidence(
+  normalizedMessage.from
+);
+
+const diagnosticEvidenceContext = `
+BUKTI DIAGNOSTIK YANG SUDAH DIKONFIRMASI CUSTOMER:
+- Starter/cranking sudah berputar: ${
+  diagnosticEvidence.starterCranking === true ? "YA" :
+  diagnosticEvidence.starterCranking === false ? "TIDAK" :
+  "BELUM DIKETAHUI"
+}
+- Alarm/kode fault muncul: ${
+  diagnosticEvidence.alarmOrFaultPresent === true ? "YA" :
+  diagnosticEvidence.alarmOrFaultPresent === false ? "TIDAK" :
+  "BELUM DIKETAHUI"
+}
+
+ATURAN EVIDENCE:
+1. Perlakukan bukti di atas sebagai fakta yang sudah dikonfirmasi.
+2. JANGAN menanyakan kembali fakta yang sudah bernilai YA atau TIDAK.
+3. JANGAN mengulang pertanyaan yang maknanya sama dengan fakta tersebut.
+4. Pilih pertanyaan diagnostik berikutnya yang memberikan informasi BARU.
+`;
+      
   const diagnosticPrompt = `
 Anda adalah Admin Purimata yang menangani troubleshooting genset dan panel secara bertahap.
+
+${diagnosticEvidenceContext}
 
 ATURAN WAJIB:
 1. Jawab hanya dengan SATU pertanyaan diagnostik paling bernilai.
