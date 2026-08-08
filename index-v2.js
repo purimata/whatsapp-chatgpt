@@ -384,7 +384,8 @@ default:
   console.warn("Unknown conversation route:", conversationRoute);
   replyText = await askOpenAI(normalizedMessage.text);
   break;
-
+  }
+  
   if (replyText) {
     await sendWhatsAppText(
       normalizedMessage.from,
