@@ -491,7 +491,28 @@ if (conversationRoute === "human_handoff") {
         "exhaustSmokePresent",
         false
       );
-    } 
+    }
+
+      // V2.2C.3E.6 - Oil Pressure During Cranking Evidence
+if (
+  (
+    diagnosticText.includes("tekanan oli") ||
+    diagnosticText.includes("oil pressure")
+  ) &&
+  diagnosticText.includes("cranking") &&
+  (
+    diagnosticText.includes("menunjukkan 0") ||
+    diagnosticText.includes("nilai 0") ||
+    diagnosticText.includes("tetap 0")
+  )
+) {
+  rememberDiagnosticEvidence(
+    normalizedMessage.from,
+    "oilPressureDuringCranking",
+    0
+  );
+}
+      
     }
     
 console.log("Conversation route:", {
@@ -579,6 +600,10 @@ BUKTI DIAGNOSTIK YANG SUDAH DIKONFIRMASI CUSTOMER:
   diagnosticEvidence.exhaustSmokePresent === true ? "YA" :
   diagnosticEvidence.exhaustSmokePresent === false ? "TIDAK" :
   "BELUM DIKETAHUI"
+}
+
+- Tekanan oli saat cranking: ${
+  diagnosticEvidence.oilPressureDuringCranking ?? "BELUM DIKETAHUI"
 }
 
 ATURAN EVIDENCE:
