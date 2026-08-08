@@ -62,6 +62,45 @@ function clearRememberedConversationRoute(from) {
   conversationRouteState.delete(from);
 }
 
+// V2.2C.3E.1 - Diagnostic Evidence State Registry
+const diagnosticEvidenceState = new Map();
+
+const DIAGNOSTIC_EVIDENCE_TTL_MS = 30 * 60 * 1000;
+
+function rememberDiagnosticEvidence(from, key, value) {
+  if (!from || !key) return;
+
+  const existing = diagnosticEvidenceState.get(from) || {
+    evidence: {},
+    updatedAt: Date.now()
+  };
+
+  existing.evidence[key] = value;
+  existing.updatedAt = Date.now();
+
+  diagnosticEvidenceState.set(from, existing);
+}
+
+function getDiagnosticEvidence(from) {
+  if (!from) return {};
+
+  const state = diagnosticEvidenceState.get(from);
+
+  if (!state) return {};
+
+  if (Date.now() - state.updatedAt > DIAGNOSTIC_EVIDENCE_TTL_MS) {
+    diagnosticEvidenceState.delete(from);
+    return {};
+  }
+
+  return { ...state.evidence };
+}
+
+function clearDiagnosticEvidence(from) {
+  if (!from) return;
+  diagnosticEvidenceState.delete(from);
+}
+
 // V2.1G.2 - WhatsApp Text Sender
 async function sendWhatsAppText(recipient, text) {
   if (!WHATSAPP_TOKEN) {
