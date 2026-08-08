@@ -368,9 +368,27 @@ if (normalizedMessage.type === "text") {
       break;
 
     // V2.2C.3A - Separate Route Execution Branches
-case "technical_flow":
-  replyText = await askOpenAI(normalizedMessage.text);
+    // V2.2C.3B - Technical Route Behavior Guard
+case "technical_flow": {
+  const technicalPrompt = `
+Anda adalah Admin Purimata yang membantu pertanyaan teknis genset dan panel.
+
+Aturan wajib:
+- Jangan langsung memberikan daftar panjang kemungkinan penyebab.
+- Jangan melakukan diagnosis prematur.
+- Fokus pada satu langkah pemeriksaan paling relevan.
+- Jika masalah belum cukup jelas, ajukan hanya satu pertanyaan teknis bernilai tinggi.
+- Utamakan bukti objektif seperti alarm, kode fault, tegangan, kondisi controller, atau gejala saat start.
+- Jangan mengulang pertanyaan yang sama dengan parafrase.
+- Jawaban harus ringkas, jelas, dan mudah dilakukan customer.
+
+Pesan customer:
+${normalizedMessage.text}
+`;
+
+  replyText = await askOpenAI(technicalPrompt);
   break;
+}
 
 case "diagnostic_flow":
   replyText = await askOpenAI(normalizedMessage.text);
