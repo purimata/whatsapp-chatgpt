@@ -352,15 +352,36 @@ console.log("Conversation route:", {
   route: conversationRoute
 });
     
-   // V2.1H.3 - Controlled OpenAI Smoke Test
+   // V2.2C.2 - Route Execution Gate
 if (normalizedMessage.type === "text") {
-  const aiReply = await askOpenAI(normalizedMessage.text);
+  let replyText = null;
 
-  await sendWhatsAppText(
-    normalizedMessage.from,
-    aiReply
-  );
-} 
+  switch (conversationRoute) {
+    case "sales_flow":
+      replyText =
+        "Untuk informasi harga panel, genset, atau pekerjaan custom, Admin Purimata tidak memberikan perkiraan harga otomatis. Saya akan arahkan kebutuhan Anda ke Admin/teknisi agar mendapat harga yang sesuai spesifikasi.";
+      break;
+
+    case "human_handoff":
+      replyText =
+        "Baik, saya akan arahkan percakapan ini ke Admin/teknisi Purimata.";
+      break;
+
+    case "technical_flow":
+    case "diagnostic_flow":
+    case "general_ai":
+    default:
+      replyText = await askOpenAI(normalizedMessage.text);
+      break;
+  }
+
+  if (replyText) {
+    await sendWhatsAppText(
+      normalizedMessage.from,
+      replyText
+    );
+  }
+}
 
 rememberProcessedMessage(messageId);
     
