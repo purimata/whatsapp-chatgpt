@@ -312,6 +312,25 @@ if (wasMessageProcessed(messageId)) {
    
 console.log("WhatsApp inbound message:", normalizedMessage);
 
+    // V2.2B - Attach Conversation Intent To Inbound Flow
+let conversationIntent = "general";
+
+if (
+  normalizedMessage.type === "text" &&
+  normalizedMessage.text
+) {
+  conversationIntent = classifyConversationIntent(
+    normalizedMessage.text
+  );
+}
+
+normalizedMessage.intent = conversationIntent;
+
+console.log("Conversation intent:", {
+  from: normalizedMessage.from,
+  intent: conversationIntent
+});
+    
    // V2.1H.3 - Controlled OpenAI Smoke Test
 if (normalizedMessage.type === "text") {
   const aiReply = await askOpenAI(normalizedMessage.text);
