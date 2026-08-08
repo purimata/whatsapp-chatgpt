@@ -32,7 +32,7 @@ function wasMessageProcessed(messageId) {
 // V2.2C.3D.1 - Conversation Route State Registry
 const conversationRouteState = new Map();
 
-const CONVERSATION_ROUTE_TTL_MS = 30 * 60 * 1000;
+const CONVERSATION_ROUTE_TTL_MS = 2 * 60 * 60 * 1000;
 
 function rememberConversationRoute(from, route) {
   if (!from || !route) return;
@@ -65,7 +65,7 @@ function clearRememberedConversationRoute(from) {
 // V2.2C.3E.1 - Diagnostic Evidence State Registry
 const diagnosticEvidenceState = new Map();
 
-const DIAGNOSTIC_EVIDENCE_TTL_MS = 30 * 60 * 1000;
+const DIAGNOSTIC_EVIDENCE_TTL_MS = 2 * 60 * 60 * 1000;
 
 function rememberDiagnosticEvidence(from, key, value) {
   if (!from || !key) return;
