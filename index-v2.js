@@ -183,7 +183,7 @@ async function askOpenAI(userText) {
 
 // V2.2A - Conversation Intent Router Foundation
 function classifyConversationIntent(text) {
-  const input = String(text || "").trim().toLowerCase();
+  const input = String(text || "").trim().toLowerCase().replace(/\s+/g, " ");
 
   if (!input) {
     return "general";
