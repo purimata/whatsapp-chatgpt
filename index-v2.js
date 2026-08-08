@@ -109,6 +109,101 @@ async function askOpenAI(userText) {
   return outputText;
 }
 
+// V2.2A - Conversation Intent Router Foundation
+function classifyConversationIntent(text) {
+  const input = String(text || "").trim().toLowerCase();
+
+  if (!input) {
+    return "general";
+  }
+
+  const greetingPatterns = [
+    "halo",
+    "hai",
+    "hi",
+    "hello",
+    "pagi",
+    "siang",
+    "sore",
+    "malam",
+    "assalamualaikum"
+  ];
+
+  const handoffPatterns = [
+    "admin",
+    "teknisi",
+    "hubungi teknisi",
+    "bicara dengan admin",
+    "sambungkan ke admin",
+    "minta teknisi"
+  ];
+
+  const salesPatterns = [
+    "harga",
+    "beli",
+    "pesan",
+    "order",
+    "penawaran",
+    "quotation",
+    "genset berapa kva",
+    "panel ats",
+    "panel amf",
+    "stok",
+    "ready"
+  ];
+
+  const diagnosticPatterns = [
+    "mati sendiri",
+    "shutdown",
+    "alarm",
+    "fault",
+    "error",
+    "tidak bisa start",
+    "gagal start",
+    "tidak keluar tegangan",
+    "overheat",
+    "low oil pressure",
+    "under voltage",
+    "over voltage"
+  ];
+
+  const technicalPatterns = [
+    "cara setting",
+    "cara pasang",
+    "wiring",
+    "instalasi",
+    "setting controller",
+    "dse",
+    "deep sea",
+    "star delta",
+    "ats",
+    "amf",
+    "panel listrik"
+  ];
+
+  if (handoffPatterns.some((pattern) => input.includes(pattern))) {
+    return "handoff";
+  }
+
+  if (diagnosticPatterns.some((pattern) => input.includes(pattern))) {
+    return "diagnostic";
+  }
+
+  if (salesPatterns.some((pattern) => input.includes(pattern))) {
+    return "sales";
+  }
+
+  if (technicalPatterns.some((pattern) => input.includes(pattern))) {
+    return "technical";
+  }
+
+  if (greetingPatterns.some((pattern) => input.includes(pattern))) {
+    return "greeting";
+  }
+
+  return "general";
+}
+
 app.use(express.json());
 
 // PURIMATA Bot V2 - Health Check
