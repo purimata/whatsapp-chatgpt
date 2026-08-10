@@ -851,6 +851,7 @@ async function handleDiagnostic(from, text) {
 
   if (target === "human_handoff") {
     clearRememberedConversationRoute(from);
+    clearDiagnosticSession(from);
     return "Pemeriksaan lewat chat sudah mencapai batas aman. Saya akan arahkan kasus ini ke Admin/teknisi Purimata untuk pemeriksaan lanjutan.";
   }
 
