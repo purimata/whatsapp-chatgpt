@@ -418,6 +418,10 @@ function selectDiagnosticTarget(session) {
   const issue = session.issueType || "generic_diagnostic";
   const e = session.evidence || {};
 
+  if (issue === "no_start" && e.engineStarted === true) {
+  return "no_start_resolved";
+}
+  
   if (session.turnCount >= MAX_DIAGNOSTIC_TURNS) return "human_handoff";
 
   if (issue === "no_start") {
@@ -429,7 +433,6 @@ function selectDiagnosticTarget(session) {
       return "starter_control_evidence";
     }
 
-    if (e.engineStarted === true) return "no_start_resolved";
     if (typeof e.exhaustSmokePresent !== "boolean") return "exhaust_smoke";
     if (typeof e.alarmOrFaultPresent !== "boolean") return "alarm_fault";
     if (e.rpmDuringCranking === undefined) return "rpm_during_cranking";
