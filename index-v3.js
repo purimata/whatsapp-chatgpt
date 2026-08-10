@@ -136,6 +136,7 @@ function makeDiagnosticSession() {
     issueType: null,
     evidence: {},
     askedTargets: [],
+    escalatedTargets: [],
     turnCount: 0,
     updatedAt: now()
   };
@@ -181,6 +182,27 @@ function rememberAskedTarget(from, target) {
   const state = touchDiagnosticSession(from);
   if (!state.askedTargets.includes(target)) state.askedTargets.push(target);
   state.turnCount += 1;
+}
+
+function rememberEscalatedTarget(from, target) {
+  if (!from || !target) return;
+
+  const state = touchDiagnosticSession(from);
+
+  if (!Array.isArray(state.escalatedTargets)) {
+    state.escalatedTargets = [];
+  }
+
+  if (!state.escalatedTargets.includes(target)) {
+    state.escalatedTargets.push(target);
+  }
+
+  state.updatedAt = now();
+}
+
+function wasTargetEscalated(session, target) {
+  return Array.isArray(session?.escalatedTargets) &&
+    session.escalatedTargets.includes(target);
 }
 
 function clearDiagnosticSession(from) {
@@ -840,15 +862,24 @@ async function handleDiagnostic(from, text) {
   // Semantic repetition guard: do not ask the same diagnostic target again if the
   // customer already received it but gave no machine-readable evidence.
   if (targetAlreadyAskedWithoutEvidence(session, target)) {
+   if (wasTargetEscalated(session, target)) {
+  clearRememberedConversationRoute(from);
+  clearDiagnosticSession(from);
+  return "Bukti yang dibutuhkan belum cukup untuk melanjutkan diagnosis dengan aman. Saya akan arahkan kasus ini ke Admin/teknisi Purimata untuk pemeriksaan lebih lanjut.";
+} 
     if (target === "starter_cranking") {
+      rememberEscalatedTarget(from, target);
       return "Agar tidak mengulang pertanyaan, kirim video singkat saat tombol START ditekan atau jelaskan satu hal saja: starter berputar atau tidak berputar.";
     }
     if (target === "exhaust_smoke") {
+      rememberEscalatedTarget(from, target);
       return "Agar tidak mengulang pertanyaan, kirim video singkat knalpot saat cranking atau jawab satu hal saja: ada asap atau tidak ada asap.";
     }
     if (target === "alarm_fault") {
+      rememberEscalatedTarget(from, target);
       return "Agar tidak mengulang pertanyaan, kirim foto controller saat gangguan terjadi agar alarm/kode fault dapat diperiksa.";
     }
+   rememberEscalatedTarget(from, target); 
     return "Agar diagnosis tidak berputar, kirim satu bukti objektif baru seperti foto controller atau satu hasil pengukuran yang relevan.";
   }
 
