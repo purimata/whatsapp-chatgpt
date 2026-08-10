@@ -640,6 +640,7 @@ async function sendWhatsAppText(recipient, text) {
   if (!recipient) throw new Error("WhatsApp recipient is required");
   if (!String(text || "").trim()) throw new Error("WhatsApp text message is empty");
 
+  try {
   await axios.post(
     `https://graph.facebook.com/${GRAPH_API_VERSION}/${PHONE_NUMBER_ID}/messages`,
     {
@@ -657,6 +658,20 @@ async function sendWhatsAppText(recipient, text) {
       timeout: 30000
     }
   );
+} catch (err) {
+  const status = err?.response?.status || null;
+  const metaError = err?.response?.data?.error || null;
+
+  console.error("[WHATSAPP_SEND_ERROR]", {
+    status,
+    type: metaError?.type || null,
+    code: metaError?.code || null,
+    subcode: metaError?.error_subcode || null,
+    message: metaError?.message || err?.message || "Unknown WhatsApp API error"
+  });
+
+  throw err;
+}
 }
 
 async function downloadWhatsAppImageAsDataUrl(mediaId) {
