@@ -12,7 +12,7 @@ const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
 const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID;
 const GRAPH_API_VERSION = process.env.GRAPH_API_VERSION || "v26.0";
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-5.4-mini";
+const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-5-mini";
 
 const MESSAGE_DEDUP_TTL_MS = 10 * 60 * 1000;
 const CONVERSATION_TTL_MS = 2 * 60 * 60 * 1000;
