@@ -342,6 +342,20 @@ function ingestDiagnosticTextEvidence(from, text) {
   const t = normalizeText(text);
   if (!t) return;
 
+  const explicitCorrection = includesAny(t, [
+  "tadi saya salah",
+  "saya salah tadi",
+  "maaf tadi salah",
+  "koreksi:",
+  "koreksi,",
+  "ralat:",
+  "ralat,",
+  "maksud saya"
+]);
+
+if (explicitCorrection) {
+  clearDiagnosticSession(from);
+}
   const session = touchDiagnosticSession(from);
   const issueType = classifyDiagnosticIssue(t, session.issueType);
   if (!session.issueType) session.issueType = issueType;
