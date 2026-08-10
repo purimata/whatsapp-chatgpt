@@ -592,10 +592,8 @@ if (
     0
   );
 }
-      
-    }
 
-   // V2.2C.3G.2 - Engine Started Evidence Ingestion
+      // V2.2C.3G.2 - Engine Started Evidence Ingestion
 if (
   diagnosticText.includes("mesin tidak hidup") ||
   diagnosticText.includes("tidak berhasil hidup") ||
@@ -608,6 +606,8 @@ if (
     false
   );
 }
+      
+    }
     
 console.log("Conversation route:", {
   from: normalizedMessage.from,
