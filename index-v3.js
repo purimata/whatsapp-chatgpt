@@ -966,8 +966,8 @@ async function processInboundMessage(normalizedMessage) {
 app.get("/", (_req, res) => {
   res.status(200).json({
     ok: true,
-    service: "PURIMATA Bot V2",
-    version: "2.2C-production"
+    service: "PURIMATA Bot V3",
+version: "3.0-audit"
   });
 });
 
@@ -1012,5 +1012,5 @@ app.post("/webhook", (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`PURIMATA Bot V2 running on port ${PORT}`);
+  console.log(`PURIMATA Bot V3 running on port ${PORT}`);
 });
