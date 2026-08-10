@@ -914,13 +914,12 @@ async function processInboundMessage(normalizedMessage) {
 
   // Diagnostic continuity: ordinary short answers remain inside the active case.
   if (
-    existingRoute === "diagnostic_flow" &&
-    intent !== "handoff" &&
-    intent !== "sales" &&
-    intent !== "technical"
-  ) {
-    intent = "diagnostic";
-  }
+  existingRoute === "diagnostic_flow" &&
+  intent !== "handoff" &&
+  intent !== "sales"
+) {
+  intent = "diagnostic";
+}
 
   const route = routeForIntent(intent);
 
