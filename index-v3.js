@@ -83,21 +83,48 @@ function safeJsonParse(text) {
 
 const processedMessageIds = new Map();
 
-function wasMessageProcessed(messageId) {
-  if (!messageId) return false;
-  const ts = processedMessageIds.get(messageId);
-  if (!ts) return false;
-  if (now() - ts > MESSAGE_DEDUP_TTL_MS) {
+function getMessageProcessingState(messageId) {
+  if (!messageId) return null;
+
+  const entry = processedMessageIds.get(messageId);
+  if (!entry) return null;
+
+  if (now() - entry.updatedAt > MESSAGE_DEDUP_TTL_MS) {
     processedMessageIds.delete(messageId);
-    return false;
+    return null;
   }
-  return true;
+
+  return entry.status;
 }
 
-function rememberProcessedMessage(messageId) {
+function markMessageInFlight(messageId) {
   if (!messageId) return;
-  processedMessageIds.set(messageId, now());
-  setTimeout(() => processedMessageIds.delete(messageId), MESSAGE_DEDUP_TTL_MS).unref?.();
+  processedMessageIds.set(messageId, {
+    status: "in_flight",
+    updatedAt: now(),
+  });
+}
+
+function markMessageCompleted(messageId) {
+  if (!messageId) return;
+  processedMessageIds.set(messageId, {
+    status: "completed",
+    updatedAt: now(),
+  });
+
+  setTimeout(
+    () => processedMessageIds.delete(messageId),
+    MESSAGE_DEDUP_TTL_MS
+  ).unref?.();
+}
+
+function releaseMessageInFlight(messageId) {
+  if (!messageId) return;
+
+  const entry = processedMessageIds.get(messageId);
+  if (entry?.status === "in_flight") {
+    processedMessageIds.delete(messageId);
+  }
 }
 
 // -----------------------------------------------------------------------------
@@ -935,12 +962,19 @@ async function processInboundMessage(normalizedMessage) {
     return;
   }
 
-  if (wasMessageProcessed(messageId)) {
-    console.log(`Duplicate WhatsApp message ignored: ${messageId}`);
-    return;
-  }
-  rememberProcessedMessage(messageId);
+  const processingState = getMessageProcessingState(messageId);
 
+if (processingState === "completed" || processingState === "in_flight") {
+  console.log(`Duplicate WhatsApp message ignored: ${messageId} (${processingState})`);
+  return;
+}
+
+markMessageInFlight(messageId);
+
+  let processingFailed = false;
+
+try {
+  
   console.log("WhatsApp inbound message:", { messageId, from, type, text, mediaId, timestamp: normalizedMessage.timestamp });
 
   // Images inside an active diagnostic session are treated as objective evidence.
@@ -1014,6 +1048,16 @@ async function processInboundMessage(normalizedMessage) {
   }
 
   if (replyText) await sendWhatsAppText(from, replyText);
+} catch (error) {
+  processingFailed = true;
+  throw error;
+} finally {
+  if (processingFailed) {
+    releaseMessageInFlight(messageId);
+  } else {
+    markMessageCompleted(messageId);
+  }
+}
 }
 
 // -----------------------------------------------------------------------------
