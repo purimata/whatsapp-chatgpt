@@ -854,11 +854,12 @@ async function handleDiagnostic(from, text) {
     return "Pemeriksaan lewat chat sudah mencapai batas aman. Saya akan arahkan kasus ini ke Admin/teknisi Purimata untuk pemeriksaan lanjutan.";
   }
 
-  if (target === "no_start_resolved") {
-    rememberAskedTarget(from, target);
-    return "Baik, mesin sudah berhasil hidup. Apakah masih ada gangguan lain yang ingin diperiksa?";
-  }
-
+ if (target === "no_start_resolved") {
+  clearRememberedConversationRoute(from);
+  clearDiagnosticSession(from);
+  return "Baik, mesin sudah berhasil hidup. Apakah masih ada gangguan lain yang ingin diperiksa?";
+}
+  
   // Semantic repetition guard: do not ask the same diagnostic target again if the
   // customer already received it but gave no machine-readable evidence.
   if (targetAlreadyAskedWithoutEvidence(session, target)) {
