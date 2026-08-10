@@ -871,7 +871,7 @@ async function processInboundMessage(normalizedMessage) {
     return;
   }
 
-  const supportedTypes = new Set(["text", "image", "video", "audio", "document"]);
+  const supportedTypes = new Set(["text", "image"]);
   if (!supportedTypes.has(type)) {
     console.log(`Unsupported WhatsApp message type ignored: ${type}`);
     return;
