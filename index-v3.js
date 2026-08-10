@@ -558,31 +558,48 @@ ATURAN LEDGER:
 async function askOpenAI(input, maxOutputTokens = 350) {
   if (!OPENAI_API_KEY) throw new Error("OPENAI_API_KEY is not configured");
 
-  const response = await axios.post(
-    "https://api.openai.com/v1/responses",
-    {
-      model: OPENAI_MODEL,
-      input,
-      max_output_tokens: maxOutputTokens
-    },
-    {
-      headers: {
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
-        "Content-Type": "application/json"
+  try {
+    const response = await axios.post(
+      "https://api.openai.com/v1/responses",
+      {
+        model: OPENAI_MODEL,
+        input,
+        max_output_tokens: maxOutputTokens
       },
-      timeout: 45000
+      {
+        headers: {
+          Authorization: `Bearer ${OPENAI_API_KEY}`,
+          "Content-Type": "application/json"
+        },
+        timeout: 45000
+      }
+    );
+
+    const outputText = response.data?.output
+      ?.flatMap((item) => item?.content || [])
+      ?.filter((item) => item?.type === "output_text")
+      ?.map((item) => item?.text || "")
+      ?.join("")
+      ?.trim();
+
+    if (!outputText) {
+      throw new Error("OpenAI returned no text output");
     }
-  );
 
-  const outputText = response.data?.output
-    ?.flatMap((item) => item?.content || [])
-    ?.filter((item) => item?.type === "output_text")
-    ?.map((item) => item?.text || "")
-    ?.join("")
-    ?.trim();
+    return outputText;
+  } catch (err) {
+    const status = err?.response?.status || null;
+    const apiError = err?.response?.data?.error || null;
 
-  if (!outputText) throw new Error("OpenAI returned no text output");
-  return outputText;
+    console.error("[OPENAI_REQUEST_ERROR]", {
+      status,
+      type: apiError?.type || null,
+      code: apiError?.code || null,
+      message: apiError?.message || err?.message || "Unknown OpenAI error"
+    });
+
+    throw err;
+  }
 }
 
 async function buildDiagnosticQuestion(session, customerText, target) {
