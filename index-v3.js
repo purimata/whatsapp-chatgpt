@@ -1020,6 +1020,7 @@ try {
   ingestDiagnosticTextEvidence(from, text);
 } else if (route === "human_handoff" || route === "sales_flow") {
   clearRememberedConversationRoute(from);
+    clearDiagnosticSession(from);
 }
 
   console.log("Conversation route:", { from, intent, route });
