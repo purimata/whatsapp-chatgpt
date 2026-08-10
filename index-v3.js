@@ -193,7 +193,23 @@ function touchDiagnosticSession(from) {
 
 function rememberDiagnosticEvidence(from, key, value) {
   if (!from || !key) return;
+
   const state = touchDiagnosticSession(from);
+  const existingValue = state.evidence[key];
+
+  if (
+    existingValue !== undefined &&
+    existingValue !== value
+  ) {
+    console.warn("Diagnostic evidence conflict ignored:", {
+      from,
+      key,
+      existingValue,
+      incomingValue: value
+    });
+    return;
+  }
+
   state.evidence[key] = value;
   state.updatedAt = now();
 }
