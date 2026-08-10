@@ -438,18 +438,40 @@ function selectDiagnosticTarget(session) {
 
 function targetAlreadyAskedWithoutEvidence(session, target) {
   if (!session.askedTargets.includes(target)) return false;
-  const e = session.evidence;
+
+  const e = session.evidence || {};
 
   switch (target) {
-    case "starter_cranking": return typeof e.starterCranking !== "boolean";
-    case "exhaust_smoke": return typeof e.exhaustSmokePresent !== "boolean";
-    case "alarm_fault": return typeof e.alarmOrFaultPresent !== "boolean";
-    case "rpm_during_cranking": return e.rpmDuringCranking === undefined;
-    case "battery_voltage_cranking": return e.batteryVoltageCranking === undefined;
-    case "output_voltage_measurement": return e.outputVoltage === undefined;
-    case "engine_running_confirmation": return typeof e.engineStarted !== "boolean";
-    default: return false;
+    case "starter_cranking":
+      return typeof e.starterCranking !== "boolean";
+
+    case "exhaust_smoke":
+      return typeof e.exhaustSmokePresent !== "boolean";
+
+    case "alarm_fault":
+      return typeof e.alarmOrFaultPresent !== "boolean";
+
+    case "rpm_during_cranking":
+      return e.rpmDuringCranking === undefined;
+
+    case "battery_voltage_cranking":
+      return e.batteryVoltageCranking === undefined;
+
+    case "engine_running_confirmation":
+      return typeof e.engineStarted !== "boolean";
+
+    case "starter_control_evidence":
+    case "fuel_control_evidence":
+    case "shutdown_operating_data":
+    case "alternator_controller_evidence":
+    case "temperature_measurement":
+    case "objective_evidence":
+      return true;
+
+    default:
+      return true;
   }
+}
 }
 
 // -----------------------------------------------------------------------------
