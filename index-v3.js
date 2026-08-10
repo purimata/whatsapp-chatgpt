@@ -275,10 +275,10 @@ function classifyConversationIntent(text) {
   ];
 
   if (includesAny(input, handoffPatterns)) return "handoff";
-  if (includesAny(input, diagnosticPatterns)) return "diagnostic";
-  if (includesAny(input, salesPatterns)) return "sales";
-  if (includesAny(input, technicalPatterns)) return "technical";
-  if (includesAny(input, greetingPatterns)) return "greeting";
+if (includesAny(input, salesPatterns)) return "sales";
+if (includesAny(input, diagnosticPatterns)) return "diagnostic";
+if (includesAny(input, technicalPatterns)) return "technical";
+if (includesAny(input, greetingPatterns)) return "greeting";
   return "general";
 }
 
@@ -1016,11 +1016,11 @@ try {
   const route = routeForIntent(intent);
 
   if (route === "diagnostic_flow") {
-    rememberConversationRoute(from, route);
-    ingestDiagnosticTextEvidence(from, text);
-  } else if (route === "human_handoff") {
-    clearRememberedConversationRoute(from);
-  }
+  rememberConversationRoute(from, route);
+  ingestDiagnosticTextEvidence(from, text);
+} else if (route === "human_handoff" || route === "sales_flow") {
+  clearRememberedConversationRoute(from);
+}
 
   console.log("Conversation route:", { from, intent, route });
 
