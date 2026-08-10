@@ -14,6 +14,29 @@ const GRAPH_API_VERSION = process.env.GRAPH_API_VERSION || "v26.0";
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-5-mini";
 
+function validateStartupConfig() {
+  const required = {
+    VERIFY_TOKEN,
+    WHATSAPP_TOKEN,
+    PHONE_NUMBER_ID,
+    OPENAI_API_KEY,
+  };
+
+  const missing = Object.entries(required)
+    .filter(([, value]) => !String(value || "").trim())
+    .map(([name]) => name);
+
+  if (missing.length > 0) {
+    throw new Error(
+      `[STARTUP_CONFIG_ERROR] Missing required environment variables: ${missing.join(", ")}`
+    );
+  }
+
+  console.log(`[STARTUP_CONFIG_OK] OpenAI model: ${OPENAI_MODEL}`);
+}
+
+validateStartupConfig();
+
 const MESSAGE_DEDUP_TTL_MS = 10 * 60 * 1000;
 const CONVERSATION_TTL_MS = 2 * 60 * 60 * 1000;
 const DIAGNOSTIC_TTL_MS = 2 * 60 * 60 * 1000;
