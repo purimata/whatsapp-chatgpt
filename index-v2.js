@@ -101,6 +101,86 @@ function clearDiagnosticEvidence(from) {
   diagnosticEvidenceState.delete(from);
 }
 
+// V2.2C.3G.1 - Diagnostic Evidence / Contradiction Gate
+function isDiagnosticQuestionAllowed(question, evidence = {}) {
+  const q = String(question || "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (!q) return false;
+
+  // Jangan tanyakan kembali kondisi starter/cranking yang sudah diketahui.
+  if (
+    typeof evidence.starterCranking === "boolean" &&
+    (
+      q.includes("starter") ||
+      q.includes("cranking") ||
+      q.includes("crank")
+    ) &&
+    (
+      q.includes("berputar") ||
+      q.includes("tidak berputar")
+    )
+  ) {
+    return false;
+  }
+
+  // Jangan tanyakan kembali evidence asap knalpot yang sudah diketahui.
+  if (
+    typeof evidence.exhaustSmokePresent === "boolean" &&
+    (
+      q.includes("asap") ||
+      q.includes("knalpot")
+    )
+  ) {
+    return false;
+  }
+
+  // Jangan tanyakan kembali tekanan oli saat cranking yang sudah diketahui.
+  if (
+    evidence.oilPressureDuringCranking !== undefined &&
+    (
+      q.includes("tekanan oli") ||
+      q.includes("oil pressure")
+    ) &&
+    (
+      q.includes("cranking") ||
+      q.includes("crank")
+    )
+  ) {
+    return false;
+  }
+
+  // Jangan tanyakan kembali alarm / fault yang sudah diketahui.
+  if (
+    typeof evidence.alarmOrFaultPresent === "boolean" &&
+    (
+      q.includes("alarm") ||
+      q.includes("fault") ||
+      q.includes("kode fault")
+    )
+  ) {
+    return false;
+  }
+
+  // Jangan izinkan pertanyaan yang mengasumsikan mesin sudah hidup
+  // bila ledger sudah menyatakan mesin tidak berhasil hidup.
+  if (
+    evidence.engineStarted === false &&
+    (
+      q.includes("setelah mesin hidup") ||
+      q.includes("setelah mesin berhasil hidup") ||
+      q.includes("ketika mesin hidup") ||
+      q.includes("saat mesin hidup")
+    )
+  ) {
+    return false;
+  }
+
+  return true;
+}
+
 // V2.1G.2 - WhatsApp Text Sender
 async function sendWhatsAppText(recipient, text) {
   if (!WHATSAPP_TOKEN) {
@@ -514,6 +594,20 @@ if (
 }
       
     }
+
+   // V2.2C.3G.2 - Engine Started Evidence Ingestion
+if (
+  diagnosticText.includes("mesin tidak hidup") ||
+  diagnosticText.includes("tidak berhasil hidup") ||
+  diagnosticText.includes("gagal hidup") ||
+  diagnosticText.includes("mesin tidak menyala")
+) {
+  rememberDiagnosticEvidence(
+    normalizedMessage.from,
+    "engineStarted",
+    false
+  );
+}
     
 console.log("Conversation route:", {
   from: normalizedMessage.from,
@@ -648,7 +742,42 @@ ${normalizedMessage.text}
 `;
 
   replyText = await askOpenAI(diagnosticPrompt);
-  break;
+
+// V2.2C.3G.4 - Bounded Diagnostic Question Regeneration
+let diagnosticGateAttempts = 0;
+
+while (
+  !isDiagnosticQuestionAllowed(replyText, diagnosticEvidence) &&
+  diagnosticGateAttempts < 2
+) {
+  diagnosticGateAttempts += 1;
+
+  const diagnosticRetryPrompt = `
+${diagnosticPrompt}
+
+PERTANYAAN SEBELUMNYA DITOLAK OLEH DIAGNOSTIC EVIDENCE GATE:
+
+${replyText}
+
+ATURAN RETRY:
+1. Jangan menanyakan kembali fakta yang sudah dikonfirmasi.
+2. Jangan membuat pertanyaan dengan arti yang sama menggunakan kalimat berbeda.
+3. Jangan membuat pertanyaan yang bertentangan dengan bukti yang sudah diketahui.
+4. Jika mesin belum berhasil hidup, jangan mengasumsikan mesin pernah berhasil hidup.
+5. Pilih SATU pertanyaan diagnostik BARU yang paling bernilai.
+6. Jawaban hanya pertanyaan tersebut, maksimal 2 kalimat.
+`;
+
+  replyText = await askOpenAI(diagnosticRetryPrompt);
+}
+
+// Jangan biarkan bot berputar tanpa akhir.
+if (!isDiagnosticQuestionAllowed(replyText, diagnosticEvidence)) {
+  replyText =
+    "Agar tidak mengulang pemeriksaan yang sudah dilakukan, kirim foto atau video singkat controller dan kondisi genset saat cranking supaya saya dapat melanjutkan dari bukti baru.";
+}
+
+break;
 }
 
 case "general_ai":
