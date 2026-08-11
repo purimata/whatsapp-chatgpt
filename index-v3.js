@@ -354,35 +354,22 @@ function classifyDiagnosticIssue(text, existingIssueType = null) {
 function detectDeclaredDiagnosticIssue(text) {
   const t = normalizeText(text);
 
-  if (includesAny(t, [
-    "tidak bisa starter",
-    "tidak bisa start",
-    "gagal start",
-    "tidak mau hidup",
-    "mesin tidak hidup",
-    "mesin tidak menyala"
-  ])) return "no_start";
+  const noStartDeclaration =
+    /^(?:(?:genset|mesin)(?: saya)?\s+)?(?:tidak bisa starter|tidak bisa start|gagal start|tidak mau hidup|tidak hidup|tidak menyala)$/;
 
-  if (includesAny(t, [
-    "shutdown",
-    "mati sendiri",
-    "trip sendiri"
-  ])) return "shutdown";
+  const shutdownDeclaration =
+    /^(?:(?:genset|mesin)(?: saya)?\s+)?(?:shutdown|mati sendiri|trip sendiri)$/;
 
-  if (includesAny(t, [
-    "tidak keluar tegangan",
-    "tidak ada tegangan",
-    "genset hidup tapi tidak keluar tegangan",
-    "no voltage",
-    "under voltage",
-    "over voltage"
-  ])) return "no_output_voltage";
+  const noOutputVoltageDeclaration =
+    /^(?:(?:genset|mesin)(?: saya)?\s+)?(?:tidak keluar tegangan|tidak ada tegangan|no voltage|under voltage|over voltage)$/;
 
-  if (includesAny(t, [
-    "overheat",
-    "temperatur tinggi",
-    "suhu tinggi"
-  ])) return "overheat";
+  const overheatDeclaration =
+    /^(?:(?:genset|mesin)(?: saya)?\s+)?(?:overheat|temperatur tinggi|suhu tinggi)$/;
+
+  if (noStartDeclaration.test(t)) return "no_start";
+  if (shutdownDeclaration.test(t)) return "shutdown";
+  if (noOutputVoltageDeclaration.test(t)) return "no_output_voltage";
+  if (overheatDeclaration.test(t)) return "overheat";
 
   return null;
 }
