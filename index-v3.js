@@ -353,12 +353,28 @@ function ingestDiagnosticTextEvidence(from, text) {
   "maksud saya"
 ]);
 
+const previousIssueType = explicitCorrection
+  ? getDiagnosticSession(from).issueType
+  : null;
+
 if (explicitCorrection) {
   clearDiagnosticSession(from);
 }
-  const session = touchDiagnosticSession(from);
-  const issueType = classifyDiagnosticIssue(t, session.issueType);
-  if (!session.issueType) session.issueType = issueType;
+
+const session = touchDiagnosticSession(from);
+
+const correctedIssueType = explicitCorrection
+  ? classifyDiagnosticIssue(t, null)
+  : null;
+
+const issueType =
+  explicitCorrection &&
+  correctedIssueType === "generic_diagnostic" &&
+  previousIssueType
+    ? previousIssueType
+    : classifyDiagnosticIssue(t, session.issueType);
+
+if (!session.issueType) session.issueType = issueType;
 
   // Explicit engine-start state.
   if (includesAny(t, [
