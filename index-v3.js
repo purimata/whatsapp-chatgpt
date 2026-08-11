@@ -1051,10 +1051,23 @@ try {
   const existingRoute = getRememberedConversationRoute(from);
 
   // Diagnostic continuity: ordinary short answers remain inside the active case.
-  if (
+  const normalizedText = normalizeText(text);
+
+const isExplicitDiagnosticCorrection = includesAny(normalizedText, [
+  "tadi saya salah",
+  "saya salah tadi",
+  "maaf tadi salah",
+  "koreksi:",
+  "koreksi,",
+  "ralat:",
+  "ralat,",
+  "maksud saya"
+]);
+
+if (
   existingRoute === "diagnostic_flow" &&
-  intent !== "handoff" &&
-  intent !== "sales"
+  (isExplicitDiagnosticCorrection ||
+    (intent !== "handoff" && intent !== "sales"))
 ) {
   intent = "diagnostic";
 }
