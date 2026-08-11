@@ -57,6 +57,21 @@ function includesAny(text, patterns) {
   return patterns.some((pattern) => text.includes(pattern));
 }
 
+function isExplicitDiagnosticCorrection(text) {
+  const t = normalizeText(text);
+
+  return includesAny(t, [
+    "tadi saya salah",
+    "saya salah tadi",
+    "maaf tadi salah",
+    "koreksi:",
+    "koreksi,",
+    "ralat:",
+    "ralat,",
+    "maksud saya"
+  ]);
+}
+
 function now() {
   return Date.now();
 }
@@ -342,16 +357,7 @@ function ingestDiagnosticTextEvidence(from, text) {
   const t = normalizeText(text);
   if (!t) return;
 
-  const explicitCorrection = includesAny(t, [
-  "tadi saya salah",
-  "saya salah tadi",
-  "maaf tadi salah",
-  "koreksi:",
-  "koreksi,",
-  "ralat:",
-  "ralat,",
-  "maksud saya"
-]);
+  const explicitCorrection = isExplicitDiagnosticCorrection(t);
 
 const previousIssueType = explicitCorrection
   ? getDiagnosticSession(from).issueType
@@ -1051,22 +1057,12 @@ try {
   const existingRoute = getRememberedConversationRoute(from);
 
   // Diagnostic continuity: ordinary short answers remain inside the active case.
-  const normalizedText = normalizeText(text);
-
-const isExplicitDiagnosticCorrection = includesAny(normalizedText, [
-  "tadi saya salah",
-  "saya salah tadi",
-  "maaf tadi salah",
-  "koreksi:",
-  "koreksi,",
-  "ralat:",
-  "ralat,",
-  "maksud saya"
-]);
+  const explicitDiagnosticCorrection =
+  isExplicitDiagnosticCorrection(text);
 
 if (
   existingRoute === "diagnostic_flow" &&
-  (isExplicitDiagnosticCorrection ||
+  (explicitDiagnosticCorrection ||
     (intent !== "handoff" && intent !== "sales"))
 ) {
   intent = "diagnostic";
