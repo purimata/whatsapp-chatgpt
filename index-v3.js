@@ -351,6 +351,42 @@ function classifyDiagnosticIssue(text, existingIssueType = null) {
   return "generic_diagnostic";
 }
 
+function detectDeclaredDiagnosticIssue(text) {
+  const t = normalizeText(text);
+
+  if (includesAny(t, [
+    "tidak bisa starter",
+    "tidak bisa start",
+    "gagal start",
+    "tidak mau hidup",
+    "mesin tidak hidup",
+    "mesin tidak menyala"
+  ])) return "no_start";
+
+  if (includesAny(t, [
+    "shutdown",
+    "mati sendiri",
+    "trip sendiri"
+  ])) return "shutdown";
+
+  if (includesAny(t, [
+    "tidak keluar tegangan",
+    "tidak ada tegangan",
+    "genset hidup tapi tidak keluar tegangan",
+    "no voltage",
+    "under voltage",
+    "over voltage"
+  ])) return "no_output_voltage";
+
+  if (includesAny(t, [
+    "overheat",
+    "temperatur tinggi",
+    "suhu tinggi"
+  ])) return "overheat";
+
+  return null;
+}
+
 // -----------------------------------------------------------------------------
 // 7. Strict confirmed-evidence ingestion
 // -----------------------------------------------------------------------------
@@ -1057,21 +1093,32 @@ try {
 
   if (!text) return;
 
-  let intent = classifyConversationIntent(text);
-  const existingRoute = getRememberedConversationRoute(from);
+ let intent = classifyConversationIntent(text);
+const existingRoute = getRememberedConversationRoute(from);
 
-  // Diagnostic continuity: ordinary short answers remain inside the active case.
-  const explicitDiagnosticCorrection =
+const explicitDiagnosticCorrection =
   isExplicitDiagnosticCorrection(text);
 
-if (
+const declaredDiagnosticIssue =
+  detectDeclaredDiagnosticIssue(text);
+
+const startsNewDiagnosticCase =
+  existingRoute === "diagnostic_flow" &&
+  intent === "diagnostic" &&
+  !explicitDiagnosticCorrection &&
+  declaredDiagnosticIssue !== null;
+
+if (startsNewDiagnosticCase) {
+  clearDiagnosticSession(from);
+  intent = "diagnostic";
+} else if (
   existingRoute === "diagnostic_flow" &&
   (explicitDiagnosticCorrection ||
     (intent !== "handoff" && intent !== "sales"))
 ) {
   intent = "diagnostic";
 }
-
+  
   const route = routeForIntent(intent);
 
   if (route === "diagnostic_flow") {
