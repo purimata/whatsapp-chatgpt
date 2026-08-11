@@ -1034,6 +1034,8 @@ try {
   // Images inside an active diagnostic session are treated as objective evidence.
   const rememberedRoute = getRememberedConversationRoute(from);
   if (type === "image" && rememberedRoute === "diagnostic_flow") {
+    rememberConversationRoute(from, rememberedRoute);
+    
     try {
       const visual = await analyzeDiagnosticImage(from, mediaId, text);
       console.log("Diagnostic visual evidence:", { from, visual });
