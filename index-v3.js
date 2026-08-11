@@ -625,7 +625,6 @@ function targetAlreadyAskedWithoutEvidence(session, target) {
       return true;
   }
 }
-}
 
 // -----------------------------------------------------------------------------
 // 9. Diagnostic target prompts
