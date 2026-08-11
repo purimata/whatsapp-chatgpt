@@ -238,8 +238,10 @@ function rememberIssueType(from, issueType) {
 function rememberAskedTarget(from, target) {
   if (!from || !target) return;
   const state = touchDiagnosticSession(from);
-  if (!state.askedTargets.includes(target)) state.askedTargets.push(target);
+  if (!state.askedTargets.includes(target)) {
+  state.askedTargets.push(target);
   state.turnCount += 1;
+}
 }
 
 function rememberEscalatedTarget(from, target) {
