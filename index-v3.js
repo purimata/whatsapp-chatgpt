@@ -491,25 +491,49 @@ if (!session.issueType) session.issueType = issueType;
     }
   }
 
-  // Oil pressure during cranking - retained as evidence, but not a first-line no-start target.
-  if (/(tekanan oli|oil pressure)/.test(t) && /(cranking|crank|starter)/.test(t)) {
-    const oilMatch = t.match(/(?:tekanan oli|oil pressure)[^0-9]{0,15}(\d+(?:[.,]\d+)?)/);
-    if (oilMatch) {
-      const value = Number(oilMatch[1].replace(",", "."));
-      if (Number.isFinite(value)) rememberDiagnosticEvidence(from, "oilPressureDuringCranking", value);
-    } else if (includesAny(t, ["menunjukkan 0", "nilai 0", "tetap 0"])) {
-      rememberDiagnosticEvidence(from, "oilPressureDuringCranking", 0);
-    }
-  }
+  // Oil pressure during cranking - retain numeric OR explicit qualitative evidence.
+if (/(tekanan oli|oil pressure)/.test(t) && /(cranking|crank|starter)/.test(t)) {
+  const oilMatch = t.match(/(?:tekanan oli|oil pressure)[^0-9]{0,20}(\d+(?:[.,]\d+)?)/);
 
-  // Output voltage while engine is running.
-  if (/(tegangan|voltage)/.test(t)) {
-    const voltageMatch = t.match(/(\d{2,4}(?:[.,]\d+)?)\s*(?:v|volt)/);
-    if (voltageMatch) {
-      const value = Number(voltageMatch[1].replace(",", "."));
-      if (Number.isFinite(value)) rememberDiagnosticEvidence(from, "outputVoltage", value);
+  if (oilMatch) {
+    const value = Number(oilMatch[1].replace(",", "."));
+    if (Number.isFinite(value)) {
+      rememberDiagnosticEvidence(from, "oilPressureDuringCranking", value);
+    }
+  } else if (includesAny(t, [
+    "tekanan oli naik",
+    "tekanan oli terbaca naik",
+    "oil pressure naik",
+    "oil pressure rises"
+  ])) {
+    rememberDiagnosticEvidence(from, "oilPressureDuringCranking", ">0");
+  } else if (includesAny(t, [
+    "tekanan oli tidak naik",
+    "tekanan oli tetap 0",
+    "menunjukkan 0",
+    "nilai 0",
+    "tetap 0"
+  ])) {
+    rememberDiagnosticEvidence(from, "oilPressureDuringCranking", 0);
+  }
+}
+
+  // Generator output voltage - do not confuse with battery/cranking voltage.
+if (
+  /(tegangan|voltage)/.test(t) &&
+  !/(baterai|aki|battery)/.test(t) &&
+  !/(cranking|crank|starter)/.test(t)
+) {
+  const voltageMatch = t.match(/(\d{2,4}(?:[.,]\d+)?)\s*(?:v|volt)/);
+
+  if (voltageMatch) {
+    const value = Number(voltageMatch[1].replace(",", "."));
+
+    if (Number.isFinite(value)) {
+      rememberDiagnosticEvidence(from, "outputVoltage", value);
     }
   }
+}
 
   session.updatedAt = now();
 }
