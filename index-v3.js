@@ -407,6 +407,104 @@ const issueType =
 
 if (!session.issueType) session.issueType = issueType;
 
+  const activeTarget = selectDiagnosticTarget(session);
+
+// Contextual short-answer ingestion.
+// Short customer replies are interpreted only against the active diagnostic target.
+if (activeTarget === "starter_cranking") {
+  if (includesAny(t, [
+    "tidak berputar", "tidak muter", "tidak cranking",
+    "diam", "tidak jalan"
+  ])) {
+    rememberDiagnosticEvidence(from, "starterCranking", false);
+  } else if (includesAny(t, [
+    "berputar", "muter", "cranking", "normal"
+  ])) {
+    rememberDiagnosticEvidence(from, "starterCranking", true);
+  }
+}
+
+if (activeTarget === "alarm_fault") {
+  if (includesAny(t, [
+    "tidak ada", "tidak muncul", "tidak ada alarm",
+    "tidak ada fault", "tanpa alarm"
+  ])) {
+    rememberDiagnosticEvidence(from, "alarmOrFaultPresent", false);
+  } else if (includesAny(t, [
+    "ada", "muncul", "ada alarm", "ada fault"
+  ])) {
+    rememberDiagnosticEvidence(from, "alarmOrFaultPresent", true);
+  }
+
+  const shortFaultCode = t.match(/^(?:kode\s*)?([a-z0-9][a-z0-9._/-]{1,20})$/i);
+  if (
+    shortFaultCode?.[1] &&
+    /\d/.test(shortFaultCode[1])
+  ) {
+    rememberDiagnosticEvidence(from, "alarmOrFaultPresent", true);
+    rememberDiagnosticEvidence(from, "faultText", shortFaultCode[1]);
+  }
+}
+
+if (activeTarget === "exhaust_smoke") {
+  if (includesAny(t, [
+    "tidak ada", "tidak keluar", "tidak terlihat", "tidak"
+  ])) {
+    rememberDiagnosticEvidence(from, "exhaustSmokePresent", false);
+  } else if (includesAny(t, [
+    "ada", "keluar", "terlihat", "ya"
+  ])) {
+    rememberDiagnosticEvidence(from, "exhaustSmokePresent", true);
+  }
+}
+
+if (activeTarget === "rpm_during_cranking") {
+  const shortRpmMatch = t.match(/^(\d{1,4})(?:\s*rpm)?$/i);
+  if (shortRpmMatch) {
+    const value = Number(shortRpmMatch[1]);
+    if (Number.isFinite(value)) {
+      rememberDiagnosticEvidence(from, "rpmDuringCranking", value);
+    }
+  }
+}
+
+if (activeTarget === "battery_voltage_cranking") {
+  const shortBatteryVoltageMatch =
+    t.match(/^(\d{1,2}(?:[.,]\d+)?)(?:\s*(?:v|volt))?$/i);
+
+  if (shortBatteryVoltageMatch) {
+    const value = Number(shortBatteryVoltageMatch[1].replace(",", "."));
+    if (Number.isFinite(value)) {
+      rememberDiagnosticEvidence(from, "batteryVoltageCranking", value);
+    }
+  }
+}
+
+if (activeTarget === "engine_running_confirmation") {
+  if (includesAny(t, [
+    "tidak hidup", "tidak menyala", "belum hidup",
+    "belum menyala", "tidak"
+  ])) {
+    rememberDiagnosticEvidence(from, "engineStarted", false);
+  } else if (includesAny(t, [
+    "hidup", "menyala", "sudah hidup", "sudah menyala", "ya"
+  ])) {
+    rememberDiagnosticEvidence(from, "engineStarted", true);
+  }
+}
+
+if (activeTarget === "output_voltage_measurement") {
+  const shortOutputVoltageMatch =
+    t.match(/^(\d{1,4}(?:[.,]\d+)?)(?:\s*(?:v|volt))?$/i);
+
+  if (shortOutputVoltageMatch) {
+    const value = Number(shortOutputVoltageMatch[1].replace(",", "."));
+    if (Number.isFinite(value)) {
+      rememberDiagnosticEvidence(from, "outputVoltage", value);
+    }
+  }
+}
+  
   // Explicit engine-start state.
   if (includesAny(t, [
     "mesin tidak hidup", "tidak berhasil hidup", "gagal hidup",
@@ -530,10 +628,12 @@ if (/(tekanan oli|oil pressure)/.test(t) && /(cranking|crank|starter)/.test(t)) 
 
   // Generator output voltage - do not confuse with battery/cranking voltage.
 if (
+  activeTarget !== "battery_voltage_cranking" &&
   /(tegangan|voltage)/.test(t) &&
   !/(baterai|aki|battery)/.test(t) &&
   !/(cranking|crank|starter)/.test(t)
 ) {
+  
   const voltageMatch = t.match(/(\d{2,4}(?:[.,]\d+)?)\s*(?:v|volt)/);
 
   if (voltageMatch) {
@@ -1193,11 +1293,15 @@ const explicitDiagnosticCorrection =
 const declaredDiagnosticIssue =
   detectDeclaredDiagnosticIssue(text);
 
+  const currentDiagnosticIssue =
+  diagnosticState.get(from)?.issueType || null;
+
 const startsNewDiagnosticCase =
   existingRoute === "diagnostic_flow" &&
   intent === "diagnostic" &&
   !explicitDiagnosticCorrection &&
-  declaredDiagnosticIssue !== null;
+  declaredDiagnosticIssue !== null &&
+  declaredDiagnosticIssue !== currentDiagnosticIssue;
 
 if (startsNewDiagnosticCase) {
   clearDiagnosticSession(from);
