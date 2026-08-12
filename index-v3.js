@@ -413,7 +413,13 @@ if (!session.issueType) session.issueType = issueType;
     "mesin tidak menyala", "starter berputar tapi mesin tidak hidup"
   ])) {
     rememberDiagnosticEvidence(from, "engineStarted", false);
-  }
+
+// Deterministic transition:
+// generator cannot have a no-output-voltage case before the engine is running.
+if (session.issueType === "no_output_voltage") {
+  session.issueType = "no_start";
+  session.updatedAt = now();
+}
 
   if (includesAny(t, [
     "mesin sudah hidup", "mesin berhasil hidup", "genset sudah hidup",
@@ -569,16 +575,30 @@ function selectDiagnosticTarget(session) {
   }
 
   if (issue === "shutdown") {
-    if (typeof e.alarmOrFaultPresent !== "boolean") return "alarm_fault";
-    if (e.faultText) return "shutdown_fault_detail";
-    return "shutdown_operating_data";
+  if (typeof e.alarmOrFaultPresent !== "boolean") return "alarm_fault";
+
+  if (e.alarmOrFaultPresent === true && !e.faultText) {
+    return "shutdown_fault_detail";
   }
 
+  return "shutdown_operating_data";
+}
+
   if (issue === "no_output_voltage") {
-    if (typeof e.engineStarted !== "boolean") return "engine_running_confirmation";
-    if (e.outputVoltage === undefined) return "output_voltage_measurement";
-    return "alternator_controller_evidence";
+  if (typeof e.engineStarted !== "boolean") {
+    return "engine_running_confirmation";
   }
+
+  if (e.engineStarted === false) {
+    return "starter_cranking";
+  }
+
+  if (e.outputVoltage === undefined) {
+    return "output_voltage_measurement";
+  }
+
+  return "alternator_controller_evidence";
+}
 
   if (issue === "overheat") {
     if (typeof e.alarmOrFaultPresent !== "boolean") return "alarm_fault";
@@ -876,6 +896,7 @@ async function downloadWhatsAppImageAsDataUrl(mediaId) {
 
 async function analyzeDiagnosticImage(from, mediaId, caption = "") {
   const session = getDiagnosticSession(from);
+  const target = selectDiagnosticTarget(session);
   const dataUrl = await downloadWhatsAppImageAsDataUrl(mediaId);
 
   const prompt = `
@@ -913,11 +934,61 @@ Kasus saat ini: ${session.issueType || "belum diketahui"}
   if (!result || Number(result.confidence || 0) < 0.7) return null;
 
   if (typeof result.alarmOrFaultPresent === "boolean") {
-    rememberDiagnosticEvidence(from, "alarmOrFaultPresent", result.alarmOrFaultPresent);
-  }
-  if (result.faultText) rememberDiagnosticEvidence(from, "faultText", String(result.faultText).slice(0, 80));
-  if (Number.isFinite(Number(result.rpmValue))) rememberDiagnosticEvidence(from, "rpmDuringCranking", Number(result.rpmValue));
-  if (Number.isFinite(Number(result.voltageValue))) rememberDiagnosticEvidence(from, "outputVoltage", Number(result.voltageValue));
+  rememberDiagnosticEvidence(
+    from,
+    "alarmOrFaultPresent",
+    result.alarmOrFaultPresent
+  );
+}
+
+if (
+  result.alarmOrFaultPresent === true &&
+  result.faultText
+) {
+  rememberDiagnosticEvidence(
+    from,
+    "faultText",
+    String(result.faultText).slice(0, 80)
+  );
+}
+
+// Contextual RPM typing:
+// only accept RPM as cranking RPM when that target is active.
+if (
+  target === "rpm_during_cranking" &&
+  Number.isFinite(Number(result.rpmValue))
+) {
+  rememberDiagnosticEvidence(
+    from,
+    "rpmDuringCranking",
+    Number(result.rpmValue)
+  );
+}
+
+// Contextual voltage typing:
+// do not treat every visible voltage as generator output voltage.
+if (
+  target === "battery_voltage_cranking" &&
+  Number.isFinite(Number(result.voltageValue))
+) {
+  rememberDiagnosticEvidence(
+    from,
+    "batteryVoltageCranking",
+    Number(result.voltageValue)
+  );
+}
+
+if (
+  target === "output_voltage_measurement" &&
+  session.evidence?.engineStarted === true &&
+  Number.isFinite(Number(result.voltageValue))
+) {
+  rememberDiagnosticEvidence(
+    from,
+    "outputVoltage",
+    Number(result.voltageValue)
+  );
+}
 
   return result;
 }
