@@ -629,7 +629,10 @@ function targetAlreadyAskedWithoutEvidence(session, target) {
       return typeof e.exhaustSmokePresent !== "boolean";
 
     case "alarm_fault":
-      return typeof e.alarmOrFaultPresent !== "boolean";
+  return (
+    typeof e.alarmOrFaultPresent !== "boolean" ||
+    (e.alarmOrFaultPresent === true && !e.faultText)
+  );
 
     case "rpm_during_cranking":
       return e.rpmDuringCranking === undefined;
