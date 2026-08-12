@@ -420,7 +420,8 @@ if (session.issueType === "no_output_voltage") {
   session.issueType = "no_start";
   session.updatedAt = now();
 }
-
+  }
+  
   if (includesAny(t, [
     "mesin sudah hidup", "mesin berhasil hidup", "genset sudah hidup",
     "genset hidup", "mesin menyala"
