@@ -416,7 +416,10 @@ if (!session.issueType) session.issueType = issueType;
 
 // Deterministic transition:
 // generator cannot have a no-output-voltage case before the engine is running.
-if (session.issueType === "no_output_voltage") {
+if (
+  session.issueType === "no_output_voltage" &&
+  session.evidence.engineStarted === false
+) {
   session.issueType = "no_start";
   session.updatedAt = now();
 }
@@ -568,8 +571,11 @@ function selectDiagnosticTarget(session) {
       return "starter_control_evidence";
     }
 
-    if (typeof e.exhaustSmokePresent !== "boolean") return "exhaust_smoke";
     if (typeof e.alarmOrFaultPresent !== "boolean") return "alarm_fault";
+    if (e.alarmOrFaultPresent === true && !e.faultText) {
+  return "alarm_fault";
+}
+if (typeof e.exhaustSmokePresent !== "boolean") return "exhaust_smoke";
     if (e.rpmDuringCranking === undefined) return "rpm_during_cranking";
     if (e.batteryVoltageCranking === undefined) return "battery_voltage_cranking";
     return "fuel_control_evidence";
