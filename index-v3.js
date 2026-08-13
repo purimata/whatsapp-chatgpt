@@ -1101,6 +1101,7 @@ if (
 // only accept RPM as cranking RPM when that target is active.
 if (
   target === "rpm_during_cranking" &&
+  result.rpmVisible === true &&
   Number.isFinite(Number(result.rpmValue))
 ) {
   rememberDiagnosticEvidence(
@@ -1114,6 +1115,8 @@ if (
 // do not treat every visible voltage as generator output voltage.
 if (
   target === "battery_voltage_cranking" &&
+  result.voltageVisible === true &&
+  
   Number.isFinite(Number(result.voltageValue))
 ) {
   rememberDiagnosticEvidence(
@@ -1126,6 +1129,7 @@ if (
 if (
   target === "output_voltage_measurement" &&
   session.evidence?.engineStarted === true &&
+  result.voltageVisible === true &&
   Number.isFinite(Number(result.voltageValue))
 ) {
   rememberDiagnosticEvidence(
