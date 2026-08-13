@@ -424,7 +424,11 @@ if (activeTarget === "starter_cranking") {
   }
 }
 
-if (activeTarget === "alarm_fault") {
+if (
+  activeTarget === "alarm_fault" ||
+  activeTarget === "shutdown_fault_detail"
+) {
+  
   if (includesAny(t, [
     "tidak ada", "tidak muncul", "tidak ada alarm",
     "tidak ada fault", "tanpa alarm"
@@ -528,16 +532,6 @@ if (activeTarget === "output_voltage_measurement") {
     "mesin tidak menyala", "starter berputar tapi mesin tidak hidup"
   ])) {
     rememberDiagnosticEvidence(from, "engineStarted", false);
-
-// Deterministic transition:
-// generator cannot have a no-output-voltage case before the engine is running.
-if (
-  session.issueType === "no_output_voltage" &&
-  session.evidence.engineStarted === false
-) {
-  session.issueType = "no_start";
-  session.updatedAt = now();
-}
   }
   
   if (includesAny(t, [
@@ -562,6 +556,16 @@ if (
     rememberDiagnosticEvidence(from, "starterCranking", false);
   }
 
+  // Deterministic issue transition:
+// a no-output-voltage case is valid only after the engine is confirmed running.
+if (
+  session.issueType === "no_output_voltage" &&
+  session.evidence.engineStarted === false
+) {
+  session.issueType = "no_start";
+  session.updatedAt = now();
+}
+  
   // Exhaust smoke during cranking.
   if (includesAny(t, [
     "tidak ada asap", "tidak keluar asap", "tanpa asap", "tidak terlihat asap"
@@ -756,6 +760,9 @@ function targetAlreadyAskedWithoutEvidence(session, target) {
     (e.alarmOrFaultPresent === true && !e.faultText)
   );
 
+      case "shutdown_fault_detail":
+  return !e.faultText;
+      
     case "rpm_during_cranking":
       return e.rpmDuringCranking === undefined;
 
@@ -871,6 +878,7 @@ BUKTI YANG SUDAH DIKONFIRMASI CUSTOMER:
 - RPM saat cranking: ${e.rpmDuringCranking ?? "BELUM DIKETAHUI"}
 - Tegangan baterai saat cranking: ${e.batteryVoltageCranking ?? "BELUM DIKETAHUI"}
 - Tekanan oli saat cranking: ${e.oilPressureDuringCranking ?? "BELUM DIKETAHUI"}
+- Temperatur coolant/engine: ${e.coolantTemperature ?? "BELUM DIKETAHUI"}
 - Tegangan output: ${e.outputVoltage ?? "BELUM DIKETAHUI"}
 
 ATURAN LEDGER:
@@ -1047,6 +1055,8 @@ Kembalikan JSON saja dengan bentuk:
   "rpmValue": number|null,
   "voltageVisible": true|false|null,
   "voltageValue": number|null,
+  "temperatureVisible": true|false|null,
+"temperatureValue": number|null,
   "notes": "ringkas"
 }
 Hanya isi nilai yang benar-benar terlihat. Jika ragu gunakan null. Confidence 0 sampai 1.
@@ -1125,6 +1135,27 @@ if (
   );
 }
 
+  // Contextual temperature typing:
+// accept controller temperature only when the active target expects it.
+if (
+  (
+    target === "temperature_measurement" ||
+    target === "shutdown_operating_data"
+  ) &&
+  result.temperatureVisible === true &&
+  Number.isFinite(Number(result.temperatureValue))
+) {
+  const temperatureValue = Number(result.temperatureValue);
+
+  if (temperatureValue >= 0 && temperatureValue <= 150) {
+    rememberDiagnosticEvidence(
+      from,
+      "coolantTemperature",
+      temperatureValue
+    );
+  }
+}
+  
   return result;
 }
 
