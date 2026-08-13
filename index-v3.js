@@ -483,7 +483,7 @@ if (activeTarget === "battery_voltage_cranking") {
 if (activeTarget === "engine_running_confirmation") {
   if (includesAny(t, [
     "tidak hidup", "tidak menyala", "belum hidup",
-    "belum menyala", "tidak"
+    "belum menyala"
   ])) {
     rememberDiagnosticEvidence(from, "engineStarted", false);
   } else if (includesAny(t, [
@@ -501,6 +501,23 @@ if (activeTarget === "output_voltage_measurement") {
     const value = Number(shortOutputVoltageMatch[1].replace(",", "."));
     if (Number.isFinite(value)) {
       rememberDiagnosticEvidence(from, "outputVoltage", value);
+    }
+  }
+}
+
+   if (
+  activeTarget === "temperature_measurement" ||
+  activeTarget === "shutdown_operating_data"
+) {
+     
+  const shortTemperatureMatch =
+    t.match(/^(\d{1,3}(?:[.,]\d+)?)\s*(?:°?\s*c|celsius)?$/i);
+
+  if (shortTemperatureMatch) {
+    const value = Number(shortTemperatureMatch[1].replace(",", "."));
+
+    if (Number.isFinite(value) && value >= 0 && value <= 150) {
+      rememberDiagnosticEvidence(from, "coolantTemperature", value);
     }
   }
 }
@@ -688,9 +705,13 @@ if (typeof e.exhaustSmokePresent !== "boolean") return "exhaust_smoke";
     return "shutdown_fault_detail";
   }
 
-  return "shutdown_operating_data";
-}
+  if (e.coolantTemperature === undefined) {
+    return "shutdown_operating_data";
+  }
 
+  return "objective_evidence";
+}
+  
   if (issue === "no_output_voltage") {
   if (typeof e.engineStarted !== "boolean") {
     return "engine_running_confirmation";
@@ -708,9 +729,10 @@ if (typeof e.exhaustSmokePresent !== "boolean") return "exhaust_smoke";
 }
 
   if (issue === "overheat") {
-    if (typeof e.alarmOrFaultPresent !== "boolean") return "alarm_fault";
-    return "temperature_measurement";
-  }
+  if (typeof e.alarmOrFaultPresent !== "boolean") return "alarm_fault";
+  if (e.coolantTemperature === undefined) return "temperature_measurement";
+  return "objective_evidence";
+}
 
   if (typeof e.alarmOrFaultPresent !== "boolean") return "alarm_fault";
   return "objective_evidence";
@@ -743,13 +765,16 @@ function targetAlreadyAskedWithoutEvidence(session, target) {
     case "engine_running_confirmation":
       return typeof e.engineStarted !== "boolean";
 
-    case "starter_control_evidence":
-    case "fuel_control_evidence":
-    case "shutdown_operating_data":
-    case "alternator_controller_evidence":
     case "temperature_measurement":
-    case "objective_evidence":
-      return true;
+  return e.coolantTemperature === undefined;
+
+      case "shutdown_operating_data":
+  return e.coolantTemperature === undefined;
+case "starter_control_evidence":
+case "fuel_control_evidence":
+case "alternator_controller_evidence":
+case "objective_evidence":
+  return true;
 
     default:
       return true;
@@ -802,8 +827,8 @@ Ada indikasi fault/alarm. Ajukan SATU pertanyaan untuk memperoleh teks/kode faul
 
   shutdown_operating_data: `
 TARGET: SHUTDOWN_OPERATING_DATA
-Minta SATU data objektif paling bernilai tepat sebelum shutdown, misalnya temperatur coolant atau tekanan oli yang terbaca controller.
-Jangan meminta dua data sekaligus.`,
+Ajukan SATU pertanyaan untuk meminta temperatur coolant/engine terakhir yang terbaca di controller tepat sebelum genset shutdown.
+Jangan meminta data lain dalam pertanyaan yang sama.`,
 
   engine_running_confirmation: `
 TARGET: ENGINE_RUNNING_CONFIRMATION
